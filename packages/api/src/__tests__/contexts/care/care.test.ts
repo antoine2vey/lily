@@ -15,7 +15,7 @@ import {
 } from '@lily/api/contexts/care/domain/care-plant'
 import type { AmendInput } from '@lily/api/contexts/care/domain/decide'
 import { Actor } from '@lily/api/kernel/permit'
-import { CareDay, CareDays, type CareType } from '@lily/shared'
+import { CareDay, CareDays, type CareType, ZoneName } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -39,7 +39,7 @@ const plant = (id: string, overrides: Partial<CarePlant> = {}): CarePlant => ({
   id,
   owner: { _tag: 'User', userId: 'user-1' },
   life: LifeState.Living(),
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   today,
   needsAttention: false,
   lines: new Map([['watering', watering()]]),
@@ -761,7 +761,7 @@ describe('Care', () => {
 
     it('moves to the care day of an instant, counted in the plant timezone', async () => {
       const world = createInMemoryCare([
-        caredTwice({ timezone: 'Pacific/Auckland' }),
+        caredTwice({ timezone: ZoneName.make('Pacific/Auckland') }),
       ])
 
       await Effect.runPromise(

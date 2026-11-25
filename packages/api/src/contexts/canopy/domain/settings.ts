@@ -7,7 +7,7 @@ import {
   Refusal,
 } from '@lily/api/contexts/canopy/domain/vocabulary'
 import { decision } from '@lily/api/kernel/transact'
-import { type CanopyId, DEFAULT_TIMEZONE, TimeZone } from '@lily/shared'
+import { type CanopyId, DEFAULT_ZONE, ZoneName } from '@lily/shared'
 import { Array, type DateTime, Option, pipe, Result, Schema } from 'effect'
 
 export const createCanopy = (
@@ -38,8 +38,8 @@ export const createCanopy = (
         name: command.name,
         timezone: pipe(
           Option.fromNullishOr(creator.timezone),
-          Option.flatMap(Schema.decodeUnknownOption(TimeZone)),
-          Option.getOrElse(() => DEFAULT_TIMEZONE)
+          Option.flatMap(Schema.decodeUnknownOption(ZoneName)),
+          Option.getOrElse(() => DEFAULT_ZONE)
         ),
         location: creator.location,
       }),

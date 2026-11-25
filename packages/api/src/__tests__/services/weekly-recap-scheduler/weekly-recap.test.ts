@@ -6,6 +6,7 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { weeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
@@ -62,7 +63,10 @@ describe('processWeeklyRecap', () => {
       vi.useRealTimers()
     })
 
-    const user = makeUserWithSettings({ id: 'user-1', timezone: 'UTC' })
+    const user = makeUserWithSettings({
+      id: 'user-1',
+      timezone: ZoneName.make('UTC'),
+    })
     const notifications: Notification[] = []
 
     const layer = Layer.mergeAll(

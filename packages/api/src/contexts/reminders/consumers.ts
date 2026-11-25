@@ -17,7 +17,7 @@ import {
 import { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import {
-  DEFAULT_TIMEZONE,
+  DEFAULT_ZONE,
   startOfTodayAsDate,
   startOfTomorrowAsDate,
 } from '@lily/shared'
@@ -49,7 +49,7 @@ export const acknowledgeCare = ({
     if (user === null) return
     const timezone = Option.getOrElse(
       Option.fromNullishOr(user.timezone),
-      () => DEFAULT_TIMEZONE
+      () => DEFAULT_ZONE
     )
     const sentToday = yield* notifications.hasNotificationIn({
       userId: by,

@@ -22,6 +22,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References } from 'effect'
@@ -113,7 +114,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
           ...vacation,

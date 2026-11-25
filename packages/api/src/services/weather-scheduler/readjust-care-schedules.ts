@@ -12,7 +12,12 @@ import {
   toIndoorPlantContext,
 } from '@lily/api/services/weather/algorithm/adjustment'
 import type { WeatherContext } from '@lily/api/services/weather/helpers/get-weather-context'
-import { CanopyId, type PlantOwner, roundCoord } from '@lily/shared'
+import {
+  CanopyId,
+  type PlantOwner,
+  roundCoord,
+  type ZoneName,
+} from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -29,14 +34,14 @@ export interface WeatherScope {
   readonly owner: PlantOwner
   readonly latitude: number
   readonly longitude: number
-  readonly timezone: string
+  readonly timezone: ZoneName
 }
 
 interface LocatedRow {
   readonly id: string
   readonly latitude: number | null
   readonly longitude: number | null
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
 }
 
 const toWeatherScope = (

@@ -22,6 +22,7 @@ import {
 } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { weeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
+import { ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Random } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -60,7 +61,7 @@ const user = makeUserWithSettings({
 })
 const trialing: TrialingUser = {
   id: USER,
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   doNotDisturb: false,
   doNotDisturbStart: null,
   doNotDisturbEnd: null,

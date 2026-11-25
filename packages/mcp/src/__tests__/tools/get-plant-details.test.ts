@@ -2,7 +2,7 @@ import { createMockApiClient } from '@lily/mcp/__tests__/mocks/api-client'
 import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getPlantDetailsEffect } from '@lily/mcp/tools/get-plant-details'
-import { type CanopyId, CareDay } from '@lily/shared'
+import { type CanopyId, CareDay, ZoneName } from '@lily/shared'
 import type { CareLogHistoryItem } from '@lily/shared/care-log'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
@@ -166,7 +166,7 @@ describe('getPlantDetails MCP tool', () => {
       getPlant: () =>
         Effect.succeed({
           ...mockPlantDetail,
-          careTimezone: 'America/New_York',
+          careTimezone: ZoneName.make('America/New_York'),
           today: CareDay.make('2024-03-05'),
           schedules: [
             {
@@ -199,7 +199,7 @@ describe('getPlantDetails MCP tool', () => {
       getPlant: () =>
         Effect.succeed({
           ...mockPlantDetail,
-          careTimezone: 'America/New_York',
+          careTimezone: ZoneName.make('America/New_York'),
         }),
       getCareLogs: () =>
         Effect.succeed({

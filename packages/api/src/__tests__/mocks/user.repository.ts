@@ -5,6 +5,7 @@ import {
 } from '@lily/api/repositories/user.repository'
 import type { users as usersTable } from '@lily/db/schema'
 import type { User } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
@@ -79,7 +80,7 @@ export const createMockUserRepository = (
         status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         publicProfile: true,
         shareGrowthData: true,

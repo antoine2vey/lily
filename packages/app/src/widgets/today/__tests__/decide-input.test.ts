@@ -1,4 +1,5 @@
 import type { CareTasksResponse } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Option } from 'effect'
 import type { AuthState } from '@/contexts/AuthContext'
@@ -15,7 +16,7 @@ const tasks: CareTasksResponse = {
   windowDays: ['2026-03-26'],
 }
 
-const user = (timezone?: string): UserProfile => ({
+const user = (timezone?: ZoneName): UserProfile => ({
   id: 'user-1',
   email: 'a@b.c',
   name: null,
@@ -29,7 +30,7 @@ const user = (timezone?: string): UserProfile => ({
   status: 'active',
 })
 
-const authenticated = (timezone?: string): AuthState => ({
+const authenticated = (timezone?: ZoneName): AuthState => ({
   _tag: 'Authenticated',
   user: user(timezone),
   accessToken: 'token',
@@ -48,13 +49,17 @@ const decide = (overrides: Partial<TodayWidgetAppState>) =>
 describe('decideTodayWidgetInput', () => {
   it('writes Ready with the profile timezone once tasks are loaded', () => {
     expect(decide({})).toStrictEqual(
-      Option.some({ _tag: 'Ready', tasks, timezone: 'Europe/Paris' })
+      Option.some({
+        _tag: 'Ready',
+        tasks,
+        timezone: ZoneName.make('Europe/Paris'),
+      })
     )
   })
 
   it('falls back to UTC like the server when the profile has no timezone', () => {
     expect(decide({ auth: authenticated() })).toStrictEqual(
-      Option.some({ _tag: 'Ready', tasks, timezone: 'UTC' })
+      Option.some({ _tag: 'Ready', tasks, timezone: ZoneName.make('UTC') })
     )
   })
 
@@ -95,7 +100,11 @@ describe('decideTodayWidgetInput', () => {
 
   it('still refreshes a signed-in widget from a background launch', () => {
     expect(decide({ appActive: false })).toStrictEqual(
-      Option.some({ _tag: 'Ready', tasks, timezone: 'Europe/Paris' })
+      Option.some({
+        _tag: 'Ready',
+        tasks,
+        timezone: ZoneName.make('Europe/Paris'),
+      })
     )
   })
 })

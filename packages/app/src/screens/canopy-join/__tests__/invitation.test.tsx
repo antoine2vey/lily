@@ -1,4 +1,5 @@
 import type { Canopy, CanopyId, CanopyInvitationView } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   fireEvent,
@@ -32,7 +33,7 @@ const view = (
 const mockLoft: Canopy = {
   id: 'canopy-1' as CanopyId,
   name: 'Loft',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'owner',

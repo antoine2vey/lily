@@ -11,6 +11,7 @@ import type {
 } from '@lily/api/repositories/engagement.repository'
 import { photoReminder } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -25,7 +26,7 @@ const makeUser = (
 ): UserWithSettings => ({
   tips: true,
   personalizedTips: false,
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   doNotDisturb: false,
   doNotDisturbStart: null,
   doNotDisturbEnd: null,

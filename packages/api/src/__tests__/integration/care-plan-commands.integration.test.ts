@@ -39,7 +39,7 @@ import {
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import type { CarePlanStatus } from '@lily/shared/care-plan'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { and, asc, eq, sql } from 'drizzle-orm'
@@ -246,7 +246,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `alex-${stamp}@example.com`,
           name: `Alex-${stamp}`,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!alex) throw new Error('user insert returned nothing')

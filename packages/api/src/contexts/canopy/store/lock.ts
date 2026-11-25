@@ -32,7 +32,7 @@ import {
   rooms,
   users,
 } from '@lily/db/schema'
-import type { CanopyId, LanguageCode, UserStatus } from '@lily/shared'
+import type { CanopyId, LanguageCode, UserStatus, ZoneName } from '@lily/shared'
 import { and, asc, eq, inArray, isNull, or, type SQL } from 'drizzle-orm'
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
@@ -47,7 +47,7 @@ const toAccount = (row: {
   readonly id: string
   readonly name: string | null
   readonly language: LanguageCode
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
   readonly latitude: number | null
   readonly longitude: number | null
   readonly status: UserStatus

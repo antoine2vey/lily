@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import type { ZoneName } from '@lily/shared'
 
 /**
  * Seed script to create demo data for visual testing
@@ -534,7 +535,7 @@ const LILY_PLANTS: DemoPlantData[] = [
 const seedDemoData = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle
   const insertCareLogs = (
-    owner: { readonly id: string; readonly timezone: string | null },
+    owner: { readonly id: string; readonly timezone: ZoneName | null },
     logs: ReadonlyArray<
       Omit<
         typeof careLogs.$inferInsert,

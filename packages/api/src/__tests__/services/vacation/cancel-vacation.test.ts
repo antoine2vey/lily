@@ -5,7 +5,7 @@ import { Vacation } from '@lily/api/contexts/absence/domain/vacation'
 import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import { cancelVacation } from '@lily/api/services/vacation/endpoints/cancel-vacation'
-import { CARE_TYPES, type User } from '@lily/shared'
+import { CARE_TYPES, type User, ZoneName } from '@lily/shared'
 import {
   Array,
   Cause,
@@ -81,7 +81,7 @@ describe('cancelVacation', () => {
   it('should end an active vacation now, not at its stored end', async () => {
     const user = createTestUser({
       id: 'user-1',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       careReminders: true,
       vacationStatus: 'active',
       vacationStart: daysFromNow(-7),
@@ -117,7 +117,7 @@ describe('cancelVacation', () => {
   it('should end the vacation when the scheduler activates it just before the cancel takes the account', async () => {
     const user = createTestUser({
       id: 'user-1',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       careReminders: true,
       vacationStatus: 'scheduled',
       vacationStart: daysFromNow(-1),

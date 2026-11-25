@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Array, pipe, String } from 'effect'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -32,7 +32,7 @@ const TIMEZONE_OPTIONS = Array.map(
     { label: 'Mumbai (IST)', value: 'Asia/Kolkata' },
     { label: 'São Paulo (BRT)', value: 'America/Sao_Paulo' },
   ],
-  ({ label, value }) => ({ label, value: TimeZone.make(value) })
+  ({ label, value }) => ({ label, value: ZoneName.make(value) })
 )
 
 export { TIMEZONE_OPTIONS }
@@ -41,7 +41,7 @@ interface TimezonePickerModalProps {
   visible: boolean
   onClose: () => void
   selectedTimezone: string
-  onTimezoneChange: (timezone: TimeZone) => void
+  onTimezoneChange: (timezone: ZoneName) => void
 }
 
 export function TimezonePickerModal({

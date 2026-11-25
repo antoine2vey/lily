@@ -3,6 +3,7 @@ import {
   type CareTasksResponse,
   type CareType,
   startOfLocalDay,
+  type ZoneName,
 } from '@lily/shared'
 import {
   Array,
@@ -56,7 +57,7 @@ export type TodayWidgetInput =
   | {
       readonly _tag: 'Ready'
       readonly tasks: CareTasksResponse
-      readonly timezone: string
+      readonly timezone: ZoneName
     }
 
 const CARE_TYPE_RANK: Record<CareType, number> = {
@@ -193,7 +194,7 @@ const buildDay = (
 
 const buildReady = (
   response: CareTasksResponse,
-  timezone: string,
+  timezone: ZoneName,
   copy: TodayWidgetCopy
 ): Option.Option<TodayWidgetSnapshot> => {
   const tasks = Array.flatten([

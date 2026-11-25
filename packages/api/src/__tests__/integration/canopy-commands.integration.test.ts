@@ -64,8 +64,8 @@ import {
   CanopyNotFoundError,
   type PlantOwner,
   RoomNotFoundError,
-  TimeZone,
   UserNotFoundError,
+  ZoneName,
 } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { defectOf, failureOf } from '@lily/shared/testing'
@@ -213,7 +213,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const canopyOf = async (owner: string, name: string) => {
       const [created] = await db
         .insert(schema.canopies)
-        .values({ name, timezone: 'UTC' })
+        .values({ name, timezone: ZoneName.make('UTC') })
         .returning()
       if (!created) throw new Error('canopy insert failed')
       await db
@@ -400,7 +400,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             name,
             emailVerified: true,
             ...(name === 'Sam'
-              ? { timezone: 'Asia/Tokyo', latitude: 35.68, longitude: 139.69 }
+              ? {
+                  timezone: ZoneName.make('Asia/Tokyo'),
+                  latitude: 35.68,
+                  longitude: 139.69,
+                }
               : {}),
           }))
         )
@@ -413,7 +417,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.canopies)
         .values({
           name: 'Home',
-          timezone: 'Europe/Paris',
+          timezone: ZoneName.make('Europe/Paris'),
           latitude: 48.85,
           longitude: 2.35,
         })
@@ -442,7 +446,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ).toMatchObject([
           {
             name: 'Studio',
-            timezone: 'Asia/Tokyo',
+            timezone: ZoneName.make('Asia/Tokyo'),
             latitude: 35.68,
             longitude: 139.69,
           },
@@ -520,7 +524,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             canopy.update({
               by: alexId,
               changes: changes({
-                timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+                timezone: Option.some(ZoneName.make('Asia/Tokyo')),
                 latitude: Option.some(null),
               }),
             })
@@ -530,7 +534,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(await canopies()).toMatchObject([
           {
             name: 'Home',
-            timezone: 'Asia/Tokyo',
+            timezone: ZoneName.make('Asia/Tokyo'),
             latitude: null,
             longitude: 2.35,
           },
@@ -1537,7 +1541,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               userId: samId,
               name: 'Sam',
               language: 'en',
-              timezone: 'Asia/Tokyo',
+              timezone: ZoneName.make('Asia/Tokyo'),
               location: Option.some({ latitude: 35.68, longitude: 139.69 }),
               reachable: true,
             },

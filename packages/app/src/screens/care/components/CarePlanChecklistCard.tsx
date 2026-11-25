@@ -4,6 +4,7 @@ import {
   CareDays,
   formatShortDate,
   parseApiDate,
+  type ZoneName,
 } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { Array, DateTime, Match, Option, pipe } from 'effect'
@@ -38,7 +39,7 @@ type DueState = 'none' | 'overdue' | 'today' | 'future'
 const dueStateOf = (
   step: CarePlanStep,
   today: CareDay,
-  timezone: string
+  timezone: ZoneName
 ): DueState =>
   pipe(
     Option.fromNullishOr(step.dueDate),

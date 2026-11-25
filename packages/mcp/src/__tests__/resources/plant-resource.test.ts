@@ -1,6 +1,6 @@
 import { careToday, seen } from '@lily/mcp/__tests__/mocks/plant'
 import { readPlantResource } from '@lily/mcp/resources/plant'
-import { CareDay } from '@lily/shared'
+import { CareDay, ZoneName } from '@lily/shared'
 import type { PlantDetail } from '@lily/shared/plant'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -117,7 +117,7 @@ describe('readPlantResource', () => {
   it('gives the stored due day, not the UTC date of the due instant', async () => {
     const plant: PlantDetail = {
       ...basePlant,
-      careTimezone: 'America/New_York',
+      careTimezone: ZoneName.make('America/New_York'),
       today: CareDay.make('2024-03-05'),
       schedules: [
         {
@@ -140,7 +140,7 @@ describe('readPlantResource', () => {
   it('gives the stored day of the last care, not the UTC date of its instant', async () => {
     const plant: PlantDetail = {
       ...basePlant,
-      careTimezone: 'America/New_York',
+      careTimezone: ZoneName.make('America/New_York'),
       schedules: [
         {
           careType: 'watering',

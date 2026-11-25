@@ -44,7 +44,7 @@ import {
   CanopyId,
   LimitExceededError,
   type PlantOwner,
-  TimeZone,
+  ZoneName,
 } from '@lily/shared'
 import { Array, DateTime, Option, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -55,7 +55,7 @@ const homeId = CanopyId.make('canopy-1')
 const home: CanopyState = {
   id: homeId,
   name: 'Home',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   members: [
     {
       userId: 'alex',
@@ -117,7 +117,10 @@ describe('createCanopy', () => {
       accounts: new Map([
         [
           'sam',
-          account({ timezone: 'Europe/Paris', location: Option.some(paris) }),
+          account({
+            timezone: ZoneName.make('Europe/Paris'),
+            location: Option.some(paris),
+          }),
         ],
       ]),
     })
@@ -128,7 +131,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: TimeZone.make('Europe/Paris'),
+            timezone: ZoneName.make('Europe/Paris'),
             location: Option.some(paris),
           }),
           CanopyWrite.AddMember({
@@ -154,7 +157,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: TimeZone.make('UTC'),
+            timezone: ZoneName.make('UTC'),
             location: Option.none(),
           })
         )
@@ -180,7 +183,7 @@ describe('createCanopy', () => {
             CanopyWrite.CreateCanopy({
               id: CanopyId.make('canopy-2'),
               name: 'Cabin',
-              timezone: TimeZone.make(zone),
+              timezone: ZoneName.make(zone),
               location: Option.none(),
             })
           )
@@ -225,7 +228,7 @@ describe('updateCanopy', () => {
   })
 
   it.each([
-    ['the timezone', { timezone: Option.some(TimeZone.make('Asia/Tokyo')) }],
+    ['the timezone', { timezone: Option.some(ZoneName.make('Asia/Tokyo')) }],
     ['the latitude', { latitude: Option.some(48.85) }],
     ['a cleared latitude', { latitude: Option.some(null) }],
     ['the longitude', { longitude: Option.some(2.35) }],
@@ -233,7 +236,7 @@ describe('updateCanopy', () => {
       'a name with a timezone',
       {
         name: Option.some('Nest'),
-        timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+        timezone: Option.some(ZoneName.make('Asia/Tokyo')),
       },
     ],
   ] satisfies ReadonlyArray<readonly [string, Partial<CanopyChanges>]>)(
@@ -254,9 +257,9 @@ describe('updateCanopy', () => {
   )
 
   it('says the timezone changed only when the value differs', () => {
-    const events = (timezone: string) =>
+    const events = (timezone: ZoneName) =>
       Result.map(
-        update('alex', { timezone: Option.some(TimeZone.make(timezone)) }),
+        update('alex', { timezone: Option.some(ZoneName.make(timezone)) }),
         (decided) => decided.events
       )
 

@@ -42,6 +42,7 @@ import { sharePlantWithCanopy } from '@lily/api/services/plants/endpoints/share-
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -211,7 +212,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const inACanopy = async (userId: string) => {
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       await db

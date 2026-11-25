@@ -29,6 +29,7 @@ import {
   CareDays,
   type CareType,
   type PlantOwner,
+  ZoneName,
 } from '@lily/shared'
 import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -46,7 +47,7 @@ const user = (
   doNotDisturb: false,
   doNotDisturbStart: '22:00',
   doNotDisturbEnd: '07:00',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   vacationStatus: 'none',
   vacationStart: null,
   vacationEnd: null,

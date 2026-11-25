@@ -44,7 +44,7 @@ import { completeDelegation } from '@lily/api/services/delegation/endpoints/comp
 import { pollAndTransition } from '@lily/api/services/delegation-scheduler/scheduler'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { DelegationInvalidStatusError } from '@lily/shared'
+import { DelegationInvalidStatusError, ZoneName } from '@lily/shared'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -535,7 +535,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })

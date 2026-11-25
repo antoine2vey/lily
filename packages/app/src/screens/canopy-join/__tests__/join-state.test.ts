@@ -7,6 +7,7 @@ import {
   CanopyInviteExpiredError,
   CanopyInviteNotFoundError,
   type CanopyInvitePreview,
+  ZoneName,
 } from '@lily/shared'
 import { Option, Result } from 'effect'
 import {
@@ -39,7 +40,7 @@ const linkOf = (p: CanopyInvitePreview): JoinOffer => ({
 const canopyNamed = (name: string, id = 'canopy-1'): Canopy => ({
   id: id as CanopyId,
   name,
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'owner',

@@ -13,6 +13,7 @@ import type { NotificationRow } from '@lily/api/repositories/helpers/notificatio
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
 import { checkAndCreateWeeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
 import type { NotificationTopic } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Layer, Order, Random } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -103,7 +104,9 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
       user('streak-5-cared-today'),
       user('streak-5-warned-today'),
       user('streak-5-warned-yesterday'),
-      user('streak-5-kiritimati', { timezone: 'Pacific/Kiritimati' }),
+      user('streak-5-kiritimati', {
+        timezone: ZoneName.make('Pacific/Kiritimati'),
+      }),
       user('streak-2'),
       user('streak-7'),
       user('streak-14-celebrated'),
@@ -192,7 +195,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
     const trialingUsers: ReadonlyArray<TrialingUser> = [
       {
         id: 'trial',
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         doNotDisturb: false,
         doNotDisturbStart: null,
         doNotDisturbEnd: null,
@@ -201,7 +204,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
       },
       {
         id: 'trial-dup-3',
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
         doNotDisturb: false,
         doNotDisturbStart: null,
         doNotDisturbEnd: null,
@@ -502,7 +505,7 @@ describe('engagement rules, pinned on a fixed clock and roll', () => {
       makeUserWithSettings({ id: 'recap-fr', language: 'fr' }),
       makeUserWithSettings({
         id: 'recap-monday',
-        timezone: 'Pacific/Kiritimati',
+        timezone: ZoneName.make('Pacific/Kiritimati'),
       }),
       makeUserWithSettings({ id: 'recap-sent-inside' }),
       makeUserWithSettings({ id: 'recap-sent-outside' }),

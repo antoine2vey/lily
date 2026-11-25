@@ -49,6 +49,7 @@ import {
   VACATION_MUTED_TOPICS,
   type VacationFields,
   type VacationStatus,
+  type ZoneName,
 } from '@lily/shared'
 import {
   and,
@@ -206,7 +207,7 @@ export const vacationColumnsOf: (vacation: Vacation) => VacationFields =
 interface AccountRow extends VacationFields {
   readonly id: string
   readonly status: UserStatus
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
 }
 
 export const vacationLeftOn = (

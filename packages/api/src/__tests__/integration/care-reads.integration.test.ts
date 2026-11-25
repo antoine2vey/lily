@@ -20,7 +20,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDay, CareDays } from '@lily/shared'
+import { CareDay, CareDays, ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -137,13 +137,13 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             email: 'reads-paris@example.com',
             name: 'Paris',
             emailVerified: true,
-            timezone: 'Europe/Paris',
+            timezone: ZoneName.make('Europe/Paris'),
           },
           {
             email: 'reads-member@example.com',
             name: 'Member',
             emailVerified: true,
-            timezone: 'Europe/Paris',
+            timezone: ZoneName.make('Europe/Paris'),
           },
         ])
         .returning()
@@ -155,7 +155,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.canopies)
         .values({
           name: 'LA canopy',
-          timezone: 'America/Los_Angeles',
+          timezone: ZoneName.make('America/Los_Angeles'),
         })
         .returning()
       if (!canopy) throw new Error('canopy insert failed')
@@ -348,7 +348,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await db
           .update(schema.users)
-          .set({ timezone: 'America/Los_Angeles' })
+          .set({ timezone: ZoneName.make('America/Los_Angeles') })
           .where(eq(schema.users.id, parisUserId))
 
         const inParis = ['2026-11-12', '2026-11-12', 'DueToday']
@@ -417,7 +417,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         await db
           .update(schema.users)
-          .set({ timezone: 'America/Los_Angeles' })
+          .set({ timezone: ZoneName.make('America/Los_Angeles') })
           .where(eq(schema.users.id, parisUserId))
 
         const [delegated, healthy] = await Effect.runPromise(
@@ -460,7 +460,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               email: `reads-${name}@example.com`,
               name,
               emailVerified: true,
-              timezone: 'Pacific/Kiritimati',
+              timezone: ZoneName.make('Pacific/Kiritimati'),
             })
             .returning()
           if (!user) throw new Error('user insert failed')

@@ -14,13 +14,13 @@ import type {
   CanopyMemberRole,
   LimitExceededError,
   PlantOwner,
-  TimeZone,
+  ZoneName,
 } from '@lily/shared'
 import { Array, Data, type DateTime, Option, pipe, Result } from 'effect'
 
 export interface CanopyChanges {
   readonly name: Option.Option<string>
-  readonly timezone: Option.Option<TimeZone>
+  readonly timezone: Option.Option<ZoneName>
   readonly latitude: Option.Option<number | null>
   readonly longitude: Option.Option<number | null>
 }
@@ -38,7 +38,7 @@ export type CanopyWrite = Data.TaggedEnum<{
   CreateCanopy: {
     readonly id: CanopyId
     readonly name: string
-    readonly timezone: TimeZone
+    readonly timezone: ZoneName
     readonly location: Option.Option<Location>
   }
   UpdateCanopy: {

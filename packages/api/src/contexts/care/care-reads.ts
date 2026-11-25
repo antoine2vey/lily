@@ -18,6 +18,7 @@ import {
   careStatus,
   type PlantOwner,
   type PlantSharer,
+  type ZoneName,
 } from '@lily/shared'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -74,7 +75,7 @@ export interface DueCare {
   readonly frequencyDays: number
   readonly dueDay: CareDay
   readonly today: CareDay
-  readonly careTimezone: string
+  readonly careTimezone: ZoneName
   readonly status: CareStatus
   readonly dueAt: Date
 }
@@ -85,7 +86,7 @@ export interface ScheduledCare {
   readonly frequencyDays: number
   readonly dueAt: Date
   readonly dueDay: CareDay
-  readonly careTimezone: string
+  readonly careTimezone: ZoneName
 }
 
 export interface DuePrune {

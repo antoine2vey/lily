@@ -4,14 +4,14 @@ import { describe, expect, it } from 'vitest'
 import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
 import {
   DEFAULT_NOTIFICATION_TIME,
-  DEFAULT_TIMEZONE,
+  DEFAULT_ZONE,
   InvalidTimeFormatError,
   InvalidTimezoneError,
   parseTime,
   TimeString,
-  TimeZone,
   validateTimeFormat,
   validateTimezone,
+  ZoneName,
 } from '../domains/notification/timezone'
 
 describe('Timezone Utilities', () => {
@@ -247,8 +247,8 @@ describe('Timezone Utilities', () => {
     })
   })
 
-  describe('TimeZone Schema', () => {
-    const decode = Schema.decodeUnknownOption(TimeZone)
+  describe('ZoneName Schema', () => {
+    const decode = Schema.decodeUnknownOption(ZoneName)
 
     it.each([
       ['Eire', 'Europe/Dublin'],
@@ -289,7 +289,7 @@ describe('Timezone Utilities', () => {
     )
 
     it('rejects an alias on encode', () => {
-      expect(Option.isNone(Schema.encodeUnknownOption(TimeZone)('Eire'))).toBe(
+      expect(Option.isNone(Schema.encodeUnknownOption(ZoneName)('Eire'))).toBe(
         true
       )
     })
@@ -297,7 +297,7 @@ describe('Timezone Utilities', () => {
 
   describe('Default values', () => {
     it('should have correct default timezone', () => {
-      expect(DEFAULT_TIMEZONE).toBe('UTC')
+      expect(DEFAULT_ZONE).toBe('UTC')
     })
 
     it('should have correct default notification time', () => {
@@ -313,7 +313,7 @@ describe('Timezone Utilities', () => {
     })
 
     it('default timezone should be valid', async () => {
-      const result = await Effect.runPromise(validateTimezone(DEFAULT_TIMEZONE))
+      const result = await Effect.runPromise(validateTimezone(DEFAULT_ZONE))
 
       expect(result).toBe('UTC')
     })

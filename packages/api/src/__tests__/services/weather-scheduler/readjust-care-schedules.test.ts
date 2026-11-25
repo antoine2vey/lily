@@ -27,6 +27,7 @@ import {
   type WeatherScope,
   weatherScopes,
 } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
+import { ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Order } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -37,7 +38,7 @@ const weatherUser = createTestUser({
   weatherEnabled: true,
   latitude: 48.86,
   longitude: 2.35,
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   careReminders: true,
 })
 
@@ -264,7 +265,7 @@ describe('readjustCareSchedules', () => {
 describe('readjustCareSchedules for a Canopy', () => {
   const canopy = createTestCanopyRow({
     id: mockCanopyId,
-    timezone: 'UTC',
+    timezone: ZoneName.make('UTC'),
     latitude: 48.86,
     longitude: 2.35,
   })

@@ -77,7 +77,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -243,7 +243,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       sam = await user('Sam')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       canopyId = canopy.id
@@ -1135,7 +1135,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const member = await user(`LeavingMember${round}`)
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: `Dissolving ${round}`, timezone: 'UTC' })
+          .values({
+            name: `Dissolving ${round}`,
+            timezone: ZoneName.make('UTC'),
+          })
           .returning()
         if (!canopy) throw new Error('Failed to create canopy')
         await db.insert(schema.canopyMembers).values([
@@ -1220,7 +1223,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const leaver = await user(`DeletedMember${round}`)
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: `Staying ${round}`, timezone: 'UTC' })
+          .values({ name: `Staying ${round}`, timezone: ZoneName.make('UTC') })
           .returning()
         if (!canopy) throw new Error('Failed to create canopy')
         await db.insert(schema.canopyMembers).values([
@@ -1586,12 +1589,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         return {
           u,
           first: updateUserSettings({
-            timezone: TimeZone.make('Europe/Paris'),
+            timezone: ZoneName.make('Europe/Paris'),
           }),
           second: () =>
             as(
               v,
-              updateUserSettings({ timezone: TimeZone.make('Asia/Tokyo') })
+              updateUserSettings({ timezone: ZoneName.make('Asia/Tokyo') })
             ),
         }
       },
@@ -1623,7 +1626,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         return {
           u,
           first: updateUserSettings({
-            timezone: TimeZone.make('Europe/Paris'),
+            timezone: ZoneName.make('Europe/Paris'),
           }),
           second: () => as(v, returnFromVacation(v)),
         }
@@ -1651,7 +1654,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           second: () =>
             as(
               u,
-              updateUserSettings({ timezone: TimeZone.make('Asia/Tokyo') })
+              updateUserSettings({ timezone: ZoneName.make('Asia/Tokyo') })
             ),
         }
       },

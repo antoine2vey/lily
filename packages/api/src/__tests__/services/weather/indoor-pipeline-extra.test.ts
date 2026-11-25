@@ -43,7 +43,7 @@ import {
   weatherScopes,
 } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
-import { roundCoord } from '@lily/shared'
+import { roundCoord, ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -199,7 +199,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: -33.87,
       longitude: 151.21,
-      timezone: 'Australia/Sydney',
+      timezone: ZoneName.make('Australia/Sydney'),
       careReminders: true,
     })
 
@@ -264,7 +264,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: 1.35,
       longitude: 103.82,
-      timezone: 'Asia/Singapore',
+      timezone: ZoneName.make('Asia/Singapore'),
       careReminders: true,
     })
 
@@ -311,7 +311,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         weatherEnabled: true,
         latitude: -33.87,
         longitude: 151.21,
-        timezone: 'Australia/Sydney',
+        timezone: ZoneName.make('Australia/Sydney'),
         careReminders: true,
       })
       const sydJuneCtx = buildWeatherCtx(
@@ -342,7 +342,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: 48.86,
       longitude: 2.35,
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
       careReminders: true,
     })
 
@@ -423,7 +423,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: 48.86,
       longitude: 2.35,
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
       careReminders: true,
     })
     const southUser = createTestUser({
@@ -431,7 +431,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: -33.87,
       longitude: 151.21,
-      timezone: 'Australia/Sydney',
+      timezone: ZoneName.make('Australia/Sydney'),
       careReminders: true,
     })
 
@@ -503,7 +503,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
       weatherEnabled: true,
       latitude: null,
       longitude: null,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       careReminders: true,
     })
 

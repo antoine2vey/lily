@@ -57,8 +57,8 @@ import {
   PlantInDelegationError,
   type PlantOwner,
   RoomNotFoundError,
-  TimeZone,
   UserNotFoundError,
+  ZoneName,
 } from '@lily/shared'
 import {
   PlantNotAuthorizedError,
@@ -75,7 +75,7 @@ const otherCanopyId = CanopyId.make('canopy-2')
 const sam = {
   id: 'sam',
   name: 'Sam',
-  timezone: 'Asia/Tokyo',
+  timezone: ZoneName.make('Asia/Tokyo'),
   latitude: 35.68,
   longitude: 139.69,
 }
@@ -186,7 +186,7 @@ describe('Canopy', () => {
       ).toMatchObject([
         {
           name: 'Studio',
-          timezone: 'Asia/Tokyo',
+          timezone: ZoneName.make('Asia/Tokyo'),
           latitude: 35.68,
           longitude: 139.69,
         },
@@ -238,7 +238,7 @@ describe('Canopy', () => {
           by: 'lily',
           changes: changes({
             name: Option.some('Nest'),
-            timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+            timezone: Option.some(ZoneName.make('Asia/Tokyo')),
           }),
         })
       )
@@ -246,7 +246,7 @@ describe('Canopy', () => {
       expect(error).toEqual(new NotCanopyOwnerError())
       expect(world.store.canopies[0]).toMatchObject({
         name: 'Home',
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
       })
       expect(world.events).toEqual([])
     })
@@ -276,7 +276,7 @@ describe('Canopy', () => {
         canopy.update({
           by: 'alex',
           changes: changes({
-            timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+            timezone: Option.some(ZoneName.make('Asia/Tokyo')),
             latitude: Option.some(35.68),
             longitude: Option.some(139.69),
           }),
@@ -285,7 +285,7 @@ describe('Canopy', () => {
 
       expect(world.store.canopies[0]).toMatchObject({
         name: 'Home',
-        timezone: 'Asia/Tokyo',
+        timezone: ZoneName.make('Asia/Tokyo'),
         latitude: 35.68,
         longitude: 139.69,
       })

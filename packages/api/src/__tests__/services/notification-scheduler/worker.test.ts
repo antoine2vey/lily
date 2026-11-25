@@ -88,6 +88,7 @@ import type {
   CanopyId,
   NotificationTopic,
 } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { DeviceToken } from '@lily/shared/device-token'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
@@ -659,7 +660,7 @@ describe('Notification Worker', () => {
         language,
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
     const withParams = (row: Notification, params: unknown): Notification =>
@@ -2043,8 +2044,8 @@ describe('Notification Worker', () => {
       }),
       createMockCareLogRepository([]),
       createMockUserRepository([
-        createTestUser({ id: 'user-1', timezone: 'UTC' }),
-        createTestUser({ id: 'user-2', timezone: 'UTC' }),
+        createTestUser({ id: 'user-1', timezone: ZoneName.make('UTC') }),
+        createTestUser({ id: 'user-2', timezone: ZoneName.make('UTC') }),
       ]),
       createMockPlantRepository({ plants }),
       createMockCanopyRepository(),
@@ -2824,7 +2825,7 @@ describe('Notification Worker', () => {
       doNotDisturb: true,
       doNotDisturbStart: hhmm(-3_600_000),
       doNotDisturbEnd: hhmm(3_600_000),
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     }
 
     const deliver = async (
@@ -2866,7 +2867,7 @@ describe('Notification Worker', () => {
       doNotDisturb: true,
       doNotDisturbStart: '22:00',
       doNotDisturbEnd,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     })
 
     afterEach(() => {
@@ -3176,7 +3177,7 @@ describe('Notification Worker', () => {
         }),
         createMockCareLogRepository([]),
         createMockUserRepository([
-          createTestUser({ id: 'user-1', timezone: 'UTC' }),
+          createTestUser({ id: 'user-1', timezone: ZoneName.make('UTC') }),
         ]),
         createMockPlantRepository({ plants: [plant] }),
         createMockCanopyRepository(),

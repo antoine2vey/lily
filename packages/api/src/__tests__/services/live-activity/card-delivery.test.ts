@@ -31,6 +31,7 @@ import {
   PushTokenInvalidatedError,
 } from '@lily/api/services/push/types'
 import type { ActivityPushToken } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Match, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -200,8 +201,8 @@ const observe = async (
             : createMockDelegationRepository(),
           createMockCanopyRepository(),
           createMockUserRepository([
-            createTestUser({ id: 'user-1', timezone: 'UTC' }),
-            createTestUser({ id: 'user-2', timezone: 'UTC' }),
+            createTestUser({ id: 'user-1', timezone: ZoneName.make('UTC') }),
+            createTestUser({ id: 'user-2', timezone: ZoneName.make('UTC') }),
           ])
         )
       ),

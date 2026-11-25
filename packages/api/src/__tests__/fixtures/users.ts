@@ -1,6 +1,6 @@
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import type { User } from '@lily/shared'
-import { daysAgoAsDate } from '@lily/shared'
+import { daysAgoAsDate, ZoneName } from '@lily/shared'
 
 export const mockUser1: User = {
   id: 'user-1',
@@ -25,7 +25,7 @@ export const mockUser1: User = {
   historyViewCount: 0,
   role: 'user',
   status: 'active',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,
@@ -64,7 +64,7 @@ export const mockUser2: User = {
   historyViewCount: 0,
   role: 'user',
   status: 'active',
-  timezone: 'America/New_York',
+  timezone: ZoneName.make('America/New_York'),
   preferredNotificationTime: '08:00',
   publicProfile: false,
   shareGrowthData: true,
@@ -105,7 +105,7 @@ export const mockAdminUser: User = {
   historyViewCount: 0,
   role: 'admin',
   status: 'active',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,
@@ -144,7 +144,7 @@ export const mockSuspendedUser: User = {
   historyViewCount: 0,
   role: 'user',
   status: 'suspended',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,
@@ -165,7 +165,7 @@ export const makeUserWithSettings = (
 ): UserWithSettings => ({
   tips: true,
   personalizedTips: false,
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   doNotDisturb: false,
   doNotDisturbStart: null,
   doNotDisturbEnd: null,
@@ -200,7 +200,7 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   historyViewCount: 0,
   role: 'user',
   status: 'active',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,

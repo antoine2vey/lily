@@ -45,7 +45,7 @@ import { processMessage } from '@lily/api/services/notification-scheduler/worker
 import type { PushMessage } from '@lily/api/services/push/types'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDay } from '@lily/shared'
+import { CareDay, ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -124,7 +124,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!row) throw new Error(`Failed to create ${name}`)
@@ -182,7 +182,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       sam = await user('Sam')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       canopyId = canopy.id

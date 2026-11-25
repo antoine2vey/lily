@@ -3,12 +3,13 @@ import {
   decodeDndBounds,
   isInDoNotDisturbWindow,
 } from '@lily/api/services/notifications/timezone-scheduler'
+import type { ZoneName } from '@lily/shared'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const adjust = (
   scheduledAt: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   dndStart: string | null,
   dndEnd: string | null
 ) =>
@@ -18,7 +19,7 @@ const adjust = (
 
 const inWindow = (
   currentTime: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   dndStart: string | null,
   dndEnd: string | null
 ) =>

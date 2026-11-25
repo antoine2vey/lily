@@ -81,7 +81,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { API_PREFIX } from '@lily/shared'
+import { API_PREFIX, ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -200,7 +200,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `${tag}@example.com`,
           name: tag,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })
@@ -771,7 +771,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const member = await insertUser('canopy-member')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Home', timezone: 'UTC' })
+        .values({ name: 'Home', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('canopy insert returned nothing')
       await db.insert(schema.canopyMembers).values([
@@ -1104,7 +1104,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const canopyOf = async (...members: ReadonlyArray<string>) => {
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: 'Home', timezone: 'UTC' })
+          .values({ name: 'Home', timezone: ZoneName.make('UTC') })
           .returning()
         if (!canopy) throw new Error('canopy insert returned nothing')
         await db.insert(schema.canopyMembers).values(
@@ -1683,7 +1683,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const token = crypto.randomUUID()
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: 'Home', timezone: 'UTC' })
+          .values({ name: 'Home', timezone: ZoneName.make('UTC') })
           .returning()
         if (!canopy) throw new Error('canopy insert returned nothing')
         await db
@@ -1905,7 +1905,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const member = await insertUser('canopy-member')
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: 'Home', timezone: 'UTC' })
+          .values({ name: 'Home', timezone: ZoneName.make('UTC') })
           .returning()
         if (!canopy) throw new Error('canopy insert returned nothing')
         await db.insert(schema.canopyMembers).values([

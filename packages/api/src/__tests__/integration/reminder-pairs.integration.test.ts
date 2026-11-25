@@ -64,7 +64,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -224,7 +224,7 @@ const TRIGGERS: ReadonlyArray<
     'canopy timezone',
     (w) => [
       w.alex,
-      updateMyCanopy({ timezone: TimeZone.make('Pacific/Niue') }),
+      updateMyCanopy({ timezone: ZoneName.make('Pacific/Niue') }),
     ],
   ],
   ['leave', (w) => [w.aboutToLeave.id, leave(w.aboutToLeave.id)]],
@@ -322,7 +322,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               emailVerified: true,
               role: 'user' as const,
               status: 'active' as const,
-              timezone: 'UTC',
+              timezone: ZoneName.make('UTC'),
               careReminders: true,
               preferredNotificationTime: '09:00',
               ...user,
@@ -332,7 +332,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .returning()
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!alex || !aboutToLeave || !onVacation || !sam || !june || !canopy) {
         throw new Error('Failed to seed the household')

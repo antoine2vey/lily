@@ -26,7 +26,7 @@ import { getRecentActivities } from '@lily/api/services/care-logs/endpoints/get-
 import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-care-log'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import type { CareType } from '@lily/shared'
+import type { CareType, ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
@@ -80,7 +80,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       effect: Effect.Effect<A, E, Layer.Success<typeof CareLogsLive>>
     ) => Effect.runPromise(effect.pipe(Effect.provide(CareLogsLive)))
 
-    const addUser = async (timezone: string) => {
+    const addUser = async (timezone: ZoneName) => {
       const [user] = await db
         .insert(schema.users)
         .values({

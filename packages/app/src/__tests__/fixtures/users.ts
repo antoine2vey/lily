@@ -1,3 +1,4 @@
+import { ZoneName } from '@lily/shared'
 import type { User, UserSettings } from '@lily/shared/user'
 
 export const mockUsers: User[] = [
@@ -22,7 +23,7 @@ export const mockUsers: User[] = [
     historyViewCount: 0,
     role: 'user',
     status: 'active',
-    timezone: 'America/New_York',
+    timezone: ZoneName.make('America/New_York'),
     preferredNotificationTime: '09:00',
     publicProfile: false,
     shareGrowthData: false,
@@ -60,7 +61,7 @@ export const mockUsers: User[] = [
     historyViewCount: 10,
     role: 'admin',
     status: 'active',
-    timezone: 'Europe/London',
+    timezone: ZoneName.make('Europe/London'),
     preferredNotificationTime: '08:00',
     publicProfile: true,
     shareGrowthData: true,
@@ -102,7 +103,7 @@ export const createTestUser = (overrides: Partial<User> = {}): User => ({
   historyViewCount: 0,
   role: 'user',
   status: 'active',
-  timezone: 'America/New_York',
+  timezone: ZoneName.make('America/New_York'),
   preferredNotificationTime: '09:00',
   publicProfile: false,
   shareGrowthData: false,
@@ -142,7 +143,7 @@ export const mockUserSettings: UserSettings = {
     shareGrowthData: false,
     personalizedTips: true,
   },
-  timezone: 'America/New_York',
+  timezone: ZoneName.make('America/New_York'),
   preferredNotificationTime: '09:00',
   language: 'en',
   temperatureUnit: 'celsius',

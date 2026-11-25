@@ -3,6 +3,7 @@ import type { Outbox } from '@lily/api/kernel/outbox'
 import type { PlantPermit } from '@lily/api/kernel/permit'
 import type { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import type { RagService } from '@lily/api/services/rag/service'
+import type { ZoneName } from '@lily/shared'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import type { ToolSet } from 'ai'
 import type { Context } from 'effect'
@@ -32,7 +33,7 @@ export interface ToolDeps {
   readonly plantName?: string | undefined
   // IANA timezone used to resolve relative due dates ("in 2 days") to the
   // user's local midnight. Defaults to UTC when unknown.
-  readonly timezone?: string | undefined
+  readonly timezone?: ZoneName | undefined
 }
 
 export const buildPlantChatTools = (

@@ -1,5 +1,5 @@
 import type { plants } from '@lily/db/schema'
-import { CareDay, type CareType } from '@lily/shared'
+import { CareDay, type CareType, ZoneName } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 
@@ -350,6 +350,6 @@ export const createTestPlant = (
 /** The care fields of a `PlantWithRoom` that has no schedules. */
 export const noCare = {
   schedules: [],
-  careTimezone: 'UTC',
+  careTimezone: ZoneName.make('UTC'),
   today: CareDay.make('2026-01-01'),
 }

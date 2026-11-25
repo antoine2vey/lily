@@ -4,7 +4,11 @@ import {
 } from '@lily/api/repositories/notification.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { startOfTodayAsDate, startOfTomorrowAsDate } from '@lily/shared'
+import {
+  startOfTodayAsDate,
+  startOfTomorrowAsDate,
+  ZoneName,
+} from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer } from 'effect'
@@ -52,7 +56,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     const recordedToday = async (
-      timezone: string,
+      timezone: ZoneName,
       now: string,
       createdAt: string
     ) => {
@@ -89,14 +93,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it.each([
       {
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         clock: '00:30 on the 25-hour day, 20 minutes after the row',
         now: '2026-10-24T22:30:00.000Z',
         createdAt: '2026-10-24T22:10:00.000Z',
         expected: true,
       },
       {
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         clock:
           '00:30 on the 25-hour day, 40 minutes after a row of the day before',
         now: '2026-10-24T22:30:00.000Z',
@@ -104,28 +108,28 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expected: false,
       },
       {
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
         clock: '00:30 on the 25-hour day, 20 minutes after the row',
         now: '2026-11-01T04:30:00.000Z',
         createdAt: '2026-11-01T04:10:00.000Z',
         expected: true,
       },
       {
-        timezone: 'Pacific/Auckland',
+        timezone: ZoneName.make('Pacific/Auckland'),
         clock: '00:30 on the 25-hour day, 20 minutes after the row',
         now: '2026-04-04T11:30:00.000Z',
         createdAt: '2026-04-04T11:10:00.000Z',
         expected: true,
       },
       {
-        timezone: 'Pacific/Kiritimati',
+        timezone: ZoneName.make('Pacific/Kiritimati'),
         clock: 'local midnight, one millisecond after the row',
         now: '2026-06-16T10:00:00.000Z',
         createdAt: '2026-06-16T09:59:59.999Z',
         expected: false,
       },
       {
-        timezone: 'Pacific/Pago_Pago',
+        timezone: ZoneName.make('Pacific/Pago_Pago'),
         clock: 'the last millisecond of the day, on a row from its first',
         now: '2026-06-16T10:59:59.999Z',
         createdAt: '2026-06-15T11:00:00.000Z',
@@ -138,7 +142,11 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     )
 
-    const sentToday = async (timezone: string, now: string, sentAt: string) => {
+    const sentToday = async (
+      timezone: ZoneName,
+      now: string,
+      sentAt: string
+    ) => {
       vi.setSystemTime(new Date(now))
       const [user] = await db
         .insert(schema.users)
@@ -188,14 +196,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it.each([
       {
-        timezone: 'America/Los_Angeles',
+        timezone: ZoneName.make('America/Los_Angeles'),
         clock: '17:30, on a reminder sent at 09:00 the same local day',
         now: '2026-06-16T00:30:00.000Z',
         sentAt: '2026-06-15T16:00:00.000Z',
         expected: true,
       },
       {
-        timezone: 'America/Los_Angeles',
+        timezone: ZoneName.make('America/Los_Angeles'),
         clock: '09:00, on a reminder sent at 21:00 the evening before',
         now: '2026-06-15T16:00:00.000Z',
         sentAt: '2026-06-15T04:00:00.000Z',

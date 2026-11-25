@@ -22,7 +22,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { auditReminders } from '@lily/api/services/reminders-audit/scheduler'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { asc, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, Option, Ref, References } from 'effect'
@@ -99,7 +99,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           preferredNotificationTime: '09:00',
         })
         .returning()
@@ -231,7 +231,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       sam = await user('Sam')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       canopyId = canopy.id

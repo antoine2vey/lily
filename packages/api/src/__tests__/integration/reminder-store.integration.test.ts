@@ -27,7 +27,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDay, CareDays } from '@lily/shared'
+import { CareDay, CareDays, ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -203,7 +203,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       sam = await user('Sam', 'UTC', '09:00')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       await db.insert(schema.canopyMembers).values([

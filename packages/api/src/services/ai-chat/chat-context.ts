@@ -11,7 +11,7 @@ import {
 import { seesCarePlan } from '@lily/api/services/care-plans/helpers/care-plan-access'
 import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
 import type { PlantView } from '@lily/api/services/plants/helpers/with-plant-access'
-import { daysSince } from '@lily/shared'
+import { daysSince, type ZoneName } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { Array, DateTime, Effect } from 'effect'
 
@@ -29,7 +29,7 @@ export interface PlantChatContext extends ChatContext {
   readonly daysSinceAdded: number
   readonly careHistory: ReadonlyArray<CareLog>
   /** The zone the viewer's care days are counted in. */
-  readonly timezone: string
+  readonly timezone: ZoneName
 }
 
 export interface ChatTurn {

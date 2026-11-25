@@ -4,6 +4,7 @@ import {
   LimitExceededError,
   type Plant,
   PlantInDelegationError,
+  ZoneName,
 } from '@lily/shared'
 import {
   fireEvent,
@@ -43,7 +44,7 @@ const joinedAt = new Date('2026-10-01T00:00:00Z')
 const canopy: Canopy = {
   id: 'canopy-1' as CanopyId,
   name: 'Loft',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'member',

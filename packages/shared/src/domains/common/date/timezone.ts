@@ -1,4 +1,5 @@
 import { DateTime, Option, pipe } from 'effect'
+import type { ZoneName } from './zone-name'
 
 /** Zero-pad a 1-2 digit number to a 2-char string (e.g. 6 -> "06"). */
 const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
@@ -16,7 +17,7 @@ const pad2 = (n: number): string => (n < 10 ? `0${n}` : `${n}`)
  * @returns None when Intl does not know `timezone`
  */
 export const zoneFromName = (
-  timezone: string
+  timezone: ZoneName
 ): Option.Option<DateTime.TimeZone> =>
   timezone === 'UTC'
     ? Option.some(DateTime.zoneMakeOffset(0))
@@ -25,10 +26,10 @@ export const zoneFromName = (
 /**
  * `zoneFromName`, falling back to UTC when Intl does not know `timezone`, such
  * as `GMT+05:00`, with no error (`startOfLocalDay` returns None for those
- * instead). Pass a decoded `TimeZone`: names that schema rejects but Intl
+ * instead). Pass a decoded `ZoneName`: names that schema rejects but Intl
  * accepts, such as `+05:00` or `europe/paris`, compute in that zone.
  */
-export const zoneFromNameOrUtc = (timezone: string): DateTime.TimeZone =>
+export const zoneFromNameOrUtc = (timezone: ZoneName): DateTime.TimeZone =>
   Option.getOrElse(zoneFromName(timezone), () => DateTime.zoneMakeOffset(0))
 
 /**
@@ -41,7 +42,7 @@ export const zoneFromNameOrUtc = (timezone: string): DateTime.TimeZone =>
  */
 export const withTimeZone = (
   dateTime: DateTime.DateTime,
-  timezone?: string
+  timezone?: ZoneName
 ): DateTime.DateTime =>
   timezone ? DateTime.setZone(dateTime, zoneFromNameOrUtc(timezone)) : dateTime
 
@@ -82,7 +83,7 @@ const weekDay = (dateTime: DateTime.DateTime, zone: DateTime.TimeZone) =>
  */
 export const startOfDay = (
   dateTime: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): DateTime.DateTime => localMidnight(dateTime, zoneFromNameOrUtc(timezone), 0)
 
 /**
@@ -94,7 +95,7 @@ export const startOfDay = (
  */
 export const startOfWeek = (
   dateTime: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): DateTime.DateTime => {
   const zone = zoneFromNameOrUtc(timezone)
   const daysSinceMonday = (weekDay(dateTime, zone) + 6) % 7
@@ -115,7 +116,7 @@ export const startOfWeek = (
  */
 export const localDayKey = (
   dateTime: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): string => {
   const parts = DateTime.toParts(withTimeZone(dateTime, timezone))
   return `${parts.year}-${pad2(parts.month)}-${pad2(parts.day)}`
@@ -136,7 +137,7 @@ export const localDayKey = (
  */
 export const startOfLocalDay = (
   dayKey: string,
-  timezone: string,
+  timezone: ZoneName,
   daysLater = 0
 ): Option.Option<DateTime.Zoned> =>
   pipe(

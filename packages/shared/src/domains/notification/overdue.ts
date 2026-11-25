@@ -1,6 +1,6 @@
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
-
 import { zoneFromNameOrUtc } from '../common/date/timezone'
+import type { ZoneName } from '../common/date/zone-name'
 import { DndWindowBlockedError } from './errors'
 import { isInDndWindow, timeToMinutes } from './timezone'
 
@@ -17,7 +17,7 @@ const EVENING: SendWindow = { start: 18 * 60, end: 22 * 60 }
 export interface SlotRecipient {
   readonly id: string
   /** IANA zone, read as UTC when unknown. */
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly doNotDisturb: boolean
   /** HH:mm, 22:00 when absent. */
   readonly doNotDisturbStart: string | null
@@ -65,7 +65,7 @@ const minuteIn = ({ start, end }: SendWindow, randomValue: number): number => {
   return start + Math.floor(position * (end - start))
 }
 
-const localNow = (timezone: string) =>
+const localNow = (timezone: ZoneName) =>
   DateTime.setZone(DateTime.nowUnsafe(), zoneFromNameOrUtc(timezone))
 
 const todayAtMinute = (now: DateTime.Zoned, minute: number): Date => {

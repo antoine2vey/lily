@@ -9,6 +9,7 @@ import { createMockEngagementRepository } from '@lily/api/__tests__/mocks/engage
 import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { TrialingUser } from '@lily/api/repositories/engagement.repository'
 import { checkAndCreateEngagementNotifications } from '@lily/api/services/engagement-scheduler/scheduler'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -22,7 +23,7 @@ const daysFromNow = (n: number) =>
 const makeTrialingUser = (
   overrides: Partial<TrialingUser> & { id: string }
 ): TrialingUser => ({
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   doNotDisturb: false,
   doNotDisturbStart: null,
   doNotDisturbEnd: null,

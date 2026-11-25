@@ -7,7 +7,13 @@ import {
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
-import { CARE_TYPES, CareDay, CareDays, type CareType } from '@lily/shared'
+import {
+  CARE_TYPES,
+  CareDay,
+  CareDays,
+  type CareType,
+  ZoneName,
+} from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -40,7 +46,7 @@ const dueToday = (
   frequencyDays: 7,
   dueAt,
   dueDay: CareDays.of(DateTime.makeUnsafe(dueAt), 'UTC'),
-  careTimezone: 'UTC',
+  careTimezone: ZoneName.make('UTC'),
   plant: {
     id: plantId,
     name: plantId,

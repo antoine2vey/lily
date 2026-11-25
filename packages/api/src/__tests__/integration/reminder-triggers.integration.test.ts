@@ -69,7 +69,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CanopyId, CareDays, type PlantOwner, TimeZone } from '@lily/shared'
+import { CanopyId, CareDays, type PlantOwner, ZoneName } from '@lily/shared'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, References } from 'effect'
@@ -140,7 +140,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })
@@ -262,7 +262,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       lily = await user('Lily')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       canopyId = canopy.id
@@ -383,14 +383,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     describe('a Canopy that changes timezone', () => {
-      const dueDayIn = (timezone: string) =>
+      const dueDayIn = (timezone: ZoneName) =>
         CareDays.of(DateTime.makeUnsafe(dueAt), timezone)
       const occasions = async () =>
         Array.map(await waitingRows(), (row) => row.occasionDay)
       const inKiritimatiWith = async (dueDay: string) => {
         await db
           .update(schema.canopies)
-          .set({ timezone: 'Pacific/Kiritimati' })
+          .set({ timezone: ZoneName.make('Pacific/Kiritimati') })
           .where(eq(schema.canopies.id, canopyId))
         await db
           .update(schema.plantCareSchedules)
@@ -405,7 +405,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await as(
           alex,
-          updateMyCanopy({ timezone: TimeZone.make('Pacific/Niue') })
+          updateMyCanopy({ timezone: ZoneName.make('Pacific/Niue') })
         )
 
         expect(before).toEqual(

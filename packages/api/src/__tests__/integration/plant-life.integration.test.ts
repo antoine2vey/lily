@@ -44,7 +44,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { type CareDay, CareDays, type PlantOwner } from '@lily/shared'
+import { type CareDay, CareDays, type PlantOwner, ZoneName } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { defectOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
@@ -181,7 +181,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       careType: 'watering' | 'misting',
       frequencyDays: number,
       dueDay: CareDay,
-      timezone: string
+      timezone: ZoneName
     ) => ({
       careType,
       frequencyDays,
@@ -240,7 +240,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row
     }
 
-    const todayIn = (timezone: string) =>
+    const todayIn = (timezone: ZoneName) =>
       CareDays.today(timezone, DateTime.nowUnsafe())
 
     beforeAll(async () => {
@@ -271,14 +271,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!user) throw new Error('user insert returned nothing')
       alex = user.id
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('canopy insert returned nothing')
       canopyId = canopy.id
@@ -452,7 +452,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     describe('reviving a plant', () => {
-      const restarted = (timezone: string) => [
+      const restarted = (timezone: ZoneName) => [
         dueOn('watering', 7, CareDays.addDays(todayIn(timezone), 7), timezone),
         dueOn('misting', 3, CareDays.addDays(todayIn(timezone), 3), timezone),
       ]

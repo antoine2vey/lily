@@ -26,6 +26,7 @@ import {
   type CareType,
   type LimitExceededError,
   type PlantOwner,
+  type ZoneName,
 } from '@lily/shared'
 import type { PlantDeathCause } from '@lily/shared/plant'
 import { Array, Data, type DateTime, Option, Result } from 'effect'
@@ -100,7 +101,7 @@ export interface NewPlant {
   readonly frequencies: ReadonlyArray<
     readonly [CareType, Option.Option<Frequency>]
   >
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly today: CareDay
 }
 

@@ -10,6 +10,7 @@ import {
   startOfWeek,
   zoneFromName,
 } from '../domains/common/date'
+import type { ZoneName } from '../domains/common/date/zone-name'
 import { pickNotificationTime } from '../domains/notification/overdue'
 import {
   CANONICAL_TIME_ZONES,
@@ -25,7 +26,7 @@ const iso = (dateTime: DateTime.DateTime | Date): string =>
     ? dateTime.toISOString()
     : DateTime.formatIso(DateTime.toUtc(dateTime))
 
-const everyHelper = (timezone: string) => ({
+const everyHelper = (timezone: ZoneName) => ({
   'CareDays.startOf': iso(CareDays.startOf(day, timezone)),
   startOfDay: iso(startOfDay(now, timezone)),
   startOfWeek: iso(startOfWeek(now, timezone)),

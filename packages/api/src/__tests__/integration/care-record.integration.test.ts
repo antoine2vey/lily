@@ -37,7 +37,7 @@ import { GCSService } from '@lily/api/services/file/gcs'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -182,7 +182,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
         email: 'care-record@example.com',
         name: 'Care Record User',
         emailVerified: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       .returning()
     if (!user) throw new Error('user insert failed')
@@ -285,7 +285,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
   it('moves the due day to the care day plus the frequency, at midnight of the care timezone', async () => {
     await db
       .update(schema.users)
-      .set({ timezone: 'Europe/Paris' })
+      .set({ timezone: ZoneName.make('Europe/Paris') })
       .where(eq(schema.users.id, userId))
     const plantId = await addPlant('Paris Plant')
 
@@ -303,7 +303,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
   it('counts a Canopy plant day in the Canopy timezone, not the acting member', async () => {
     const [canopy] = await db
       .insert(schema.canopies)
-      .values({ name: 'Flat', timezone: 'Pacific/Auckland' })
+      .values({ name: 'Flat', timezone: ZoneName.make('Pacific/Auckland') })
       .returning()
     if (!canopy) throw new Error('canopy insert failed')
     const shared = await addPlant('Shared Fern', undefined, {
@@ -515,7 +515,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
           email: 'other-carer@example.com',
           name: 'Other Carer',
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!other) throw new Error('user insert failed')

@@ -1,4 +1,4 @@
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { CarePlan } from '@lily/shared/care-plan'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { getDeviceTimezone } from '@/utils/notifications'
@@ -154,7 +154,7 @@ describe('CarePlanChecklistCard', () => {
       },
     ])('in $zone at $now, a step due $dueDate reads $label', (row) => {
       jest.useFakeTimers({ now: new Date(row.now) })
-      jest.mocked(getDeviceTimezone).mockReturnValue(TimeZone.make(row.zone))
+      jest.mocked(getDeviceTimezone).mockReturnValue(ZoneName.make(row.zone))
 
       render(
         <CarePlanChecklistCard

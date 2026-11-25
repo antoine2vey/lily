@@ -1,5 +1,5 @@
 import type { ProposedStep } from '@lily/api/contexts/care'
-import { CARE_TYPES, CareDays } from '@lily/shared'
+import { CARE_TYPES, CareDays, type ZoneName } from '@lily/shared'
 import { DateTime, Option, pipe } from 'effect'
 import { z } from 'zod'
 
@@ -49,7 +49,7 @@ export type CarePlanStepInput = z.infer<typeof carePlanStepSchema>
  */
 export const resolveDueDate = (
   dueInDays: number | undefined,
-  timezone: string,
+  timezone: ZoneName,
   now: DateTime.Utc = DateTime.nowUnsafe()
 ): Date | undefined =>
   pipe(
@@ -67,7 +67,7 @@ export const resolveDueDate = (
 
 export const toProposedStep = (
   step: CarePlanStepInput,
-  timezone: string,
+  timezone: ZoneName,
   now?: DateTime.Utc
 ): ProposedStep => ({
   title: step.title,

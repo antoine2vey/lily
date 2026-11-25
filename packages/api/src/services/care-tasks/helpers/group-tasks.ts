@@ -13,7 +13,7 @@ import type {
   CareGroupContent,
   LiveActivityContentState,
 } from '@lily/api/services/push/types'
-import { CareDay, CareDays, type CareType } from '@lily/shared'
+import { CareDay, CareDays, type CareType, type ZoneName } from '@lily/shared'
 import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -26,8 +26,10 @@ const EPOCH_DAY = CareDay.make('1970-01-01')
  * Picks the lock-screen title. It changes once per day of `timezone`, not on
  * every activity update, which would flicker the bold first line.
  */
-export const titleSeedOf = (timezone: string, now: DateTime.DateTime): number =>
-  CareDays.daysBetween(EPOCH_DAY, CareDays.today(timezone, now))
+export const titleSeedOf = (
+  timezone: ZoneName,
+  now: DateTime.DateTime
+): number => CareDays.daysBetween(EPOCH_DAY, CareDays.today(timezone, now))
 
 export const buildLiveActivityContentState = (
   userId: string

@@ -1,6 +1,6 @@
 import { Schema } from 'effect'
 
-import { TimeString, TimeZone } from '../notification/timezone'
+import { TimeString, ZoneName } from '../notification/timezone'
 import { VacationStatus } from '../vacation/schema'
 
 export const UserRole = Schema.Literals(['user', 'admin'])
@@ -121,7 +121,7 @@ export const UserSettingsUpdateRequest = Schema.Struct({
       personalizedTips: Schema.optional(Schema.Boolean),
     })
   ),
-  timezone: Schema.optional(TimeZone),
+  timezone: Schema.optional(ZoneName),
   preferredNotificationTime: Schema.optional(Schema.String),
   language: Schema.optional(LanguageCode),
   temperatureUnit: Schema.optional(TemperatureUnit),

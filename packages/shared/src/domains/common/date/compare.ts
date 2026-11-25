@@ -1,8 +1,8 @@
 import { DateTime, Duration, Option, pipe } from 'effect'
-
 import { CareDays } from '../../care/care-day'
 import { type DateInput, now, parseApiDate } from './parse'
 import { startOfDay, withTimeZone } from './timezone'
+import type { ZoneName } from './zone-name'
 
 /**
  * Calculate the whole-day offset of a DateTime from a reference, in a timezone.
@@ -24,7 +24,7 @@ import { startOfDay, withTimeZone } from './timezone'
 export const localDayOffset = (
   dateTime: DateTime.DateTime,
   referenceDate: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): number => {
   const targetStart = startOfDay(dateTime, timezone)
   const currentStart = startOfDay(referenceDate, timezone)
@@ -62,7 +62,7 @@ export const daysBetween = (
 export const isToday = (
   dateTime: DateTime.DateTime,
   referenceDate: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): boolean => {
   const current = withTimeZone(referenceDate, timezone)
   const target = withTimeZone(dateTime, timezone)
@@ -100,7 +100,7 @@ export const isFuture = (dateTime: DateTime.DateTime): boolean => {
  */
 export const isYesterday = (
   dateTime: DateTime.DateTime,
-  timezone: string
+  timezone: ZoneName
 ): boolean =>
   CareDays.of(dateTime, timezone) ===
   CareDays.addDays(CareDays.today(timezone, DateTime.nowUnsafe()), -1)

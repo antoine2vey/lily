@@ -6,7 +6,7 @@ import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
 import type { AbsenceStore, Edge } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import { pollAndTransitionVacations } from '@lily/api/services/vacation-scheduler/scheduler'
-import { CARE_TYPES, type User } from '@lily/shared'
+import { CARE_TYPES, type User, ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array,
@@ -189,7 +189,7 @@ describe('vacation-scheduler', () => {
     const vacationEnd = daysFromNow(-3)
     const user = createTestUser({
       id: 'user-1',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       careReminders: true,
       vacationStatus: 'active',
       vacationStart: new Date(vacationEnd.getTime() - 7 * DAY_MS),
@@ -329,7 +329,7 @@ describe('vacation-scheduler', () => {
     const users = [
       createTestUser({
         id: 'user-1',
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         vacationStatus: 'scheduled',
         vacationStart: daysFromNow(-5),
         vacationEnd: daysFromNow(-2),

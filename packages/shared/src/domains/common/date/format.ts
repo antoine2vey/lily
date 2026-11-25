@@ -7,7 +7,6 @@ import {
   Option,
   pipe,
 } from 'effect'
-
 import { CareDays } from '../../care/care-day'
 import { isToday, isYesterday } from './compare'
 import {
@@ -17,6 +16,7 @@ import {
   toIsoString,
   toNativeDate,
 } from './parse'
+import type { ZoneName } from './zone-name'
 
 /**
  * Format date as day of week (e.g., "Monday").
@@ -413,7 +413,7 @@ export const formatApiDateAsNextDate = (
  */
 export const getDateGroupLabel = (
   dateTime: DateTime.DateTime,
-  timezone: string,
+  timezone: ZoneName,
   locale?: Intl.LocalesArgument
 ): string => {
   if (isToday(dateTime, DateTime.nowUnsafe(), timezone)) return 'Today'
@@ -432,7 +432,7 @@ export const getDateGroupLabel = (
  */
 export const getApiDateGroupLabel = (
   dateInput: DateInput,
-  timezone: string,
+  timezone: ZoneName,
   defaultValue = 'Unknown',
   locale?: Intl.LocalesArgument
 ): string =>
@@ -488,7 +488,7 @@ export const formatIsoDate = (
 export const formatDaysUntilHuman = (
   dateInput: DateInput,
   now: DateTime.DateTime,
-  timezone: string,
+  timezone: ZoneName,
   defaultValue = 'Not scheduled'
 ): string =>
   pipe(

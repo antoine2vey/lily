@@ -61,6 +61,7 @@ import { recordFollow } from '@lily/api/services/social/endpoints/follow-user'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References } from 'effect'
@@ -114,7 +115,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `${tag}@example.com`,
           name: tag,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!user) throw new Error('user insert returned nothing')
@@ -846,7 +847,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const locked = await insertUser(`canopy-${status}`)
         const [canopy] = await db
           .insert(schema.canopies)
-          .values({ name: 'Flat', timezone: 'UTC' })
+          .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
           .returning()
         if (!canopy) throw new Error('canopy insert returned nothing')
         await db.insert(schema.canopyMembers).values([

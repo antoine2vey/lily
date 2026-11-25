@@ -1,11 +1,11 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { users } from '@lily/db/schema'
-import type { LanguageCode, VacationStatus } from '@lily/shared'
+import type { LanguageCode, VacationStatus, ZoneName } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UserNotificationSettings {
-  timezone: string | null
+  timezone: ZoneName | null
   preferredTime: string | null
   careReminders: boolean
   tips: boolean

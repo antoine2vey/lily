@@ -23,7 +23,7 @@ import {
 } from '@lily/api/contexts/care/domain/decide'
 import type { PlanStatus, PlanStep } from '@lily/api/contexts/care/domain/plan'
 import { Actor } from '@lily/api/kernel/permit'
-import { CareDay, CareDays, type CareType } from '@lily/shared'
+import { CareDay, CareDays, type CareType, ZoneName } from '@lily/shared'
 import { Array, DateTime, Option, pipe, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -62,7 +62,7 @@ const plant = (
   id: 'plant-1',
   owner: { _tag: 'User', userId: 'user-1' },
   life: LifeState.Living(),
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   today,
   needsAttention: false,
   lines: new Map(Array.map(lines, (l) => [l.careType, l])),
@@ -232,7 +232,7 @@ describe('recordCare', () => {
     const lateEvening = DateTime.makeUnsafe('2026-11-11T23:30:00Z')
     const paris = plant(
       [line('watering', { frequency: 7, history: [['a', '2026-11-11']] })],
-      { timezone: 'Europe/Paris' }
+      { timezone: ZoneName.make('Europe/Paris') }
     )
 
     const decided = pipe(

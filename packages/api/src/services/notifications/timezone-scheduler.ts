@@ -1,11 +1,12 @@
 import {
   DEFAULT_NOTIFICATION_TIME,
-  DEFAULT_TIMEZONE,
+  DEFAULT_ZONE,
   isInDndWindow,
   parseTime,
   TimeString,
   timeToMinutes,
   validateTimezone,
+  type ZoneName,
 } from '@lily/shared'
 import {
   Array,
@@ -27,13 +28,13 @@ import {
  */
 export const preferredTimeOn = (
   baseDate: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   preferredTime: string | null
 ): Effect.Effect<Date, never> =>
   Effect.gen(function* () {
     const tz = pipe(
       Option.fromNullishOr(timezone),
-      Option.getOrElse(() => DEFAULT_TIMEZONE)
+      Option.getOrElse(() => DEFAULT_ZONE)
     )
     const time = pipe(
       Option.fromNullishOr(preferredTime),
@@ -45,9 +46,9 @@ export const preferredTimeOn = (
       Effect.catchTag('InvalidTimezoneError', () =>
         Effect.gen(function* () {
           yield* Effect.logWarning(
-            `Invalid timezone "${tz}", falling back to ${DEFAULT_TIMEZONE}`
+            `Invalid timezone "${tz}", falling back to ${DEFAULT_ZONE}`
           )
-          return DEFAULT_TIMEZONE
+          return DEFAULT_ZONE
         })
       )
     )
@@ -78,7 +79,7 @@ export const preferredTimeOn = (
 
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_ZONE))
     )
 
     const baseDateTime = DateTime.makeUnsafe(baseDate)
@@ -109,7 +110,7 @@ export const preferredTimeOn = (
  */
 export const calculateScheduledAt = (
   baseDate: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   preferredTime: string | null
 ): Effect.Effect<Date, never> =>
   Effect.map(preferredTimeOn(baseDate, timezone, preferredTime), (at) =>
@@ -183,25 +184,25 @@ export const decodeDndBounds = (
  */
 export const adjustForDoNotDisturb = (
   scheduledAt: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   { start, end }: DndBounds
 ): Effect.Effect<Date, never> =>
   Effect.gen(function* () {
     const tz = pipe(
       Option.fromNullishOr(timezone),
-      Option.getOrElse(() => DEFAULT_TIMEZONE)
+      Option.getOrElse(() => DEFAULT_ZONE)
     )
 
     const validTimezone = yield* pipe(
       validateTimezone(tz),
       Effect.catchTag('InvalidTimezoneError', () =>
-        Effect.succeed(DEFAULT_TIMEZONE)
+        Effect.succeed(DEFAULT_ZONE)
       )
     )
 
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_ZONE))
     )
 
     const scheduledDateTime = pipe(
@@ -251,25 +252,25 @@ export const adjustForDoNotDisturb = (
  */
 export const isInDoNotDisturbWindow = (
   currentTime: Date,
-  timezone: string | null,
+  timezone: ZoneName | null,
   { start, end }: DndBounds
 ): Effect.Effect<boolean, never> =>
   Effect.gen(function* () {
     const tz = pipe(
       Option.fromNullishOr(timezone),
-      Option.getOrElse(() => DEFAULT_TIMEZONE)
+      Option.getOrElse(() => DEFAULT_ZONE)
     )
 
     const validTimezone = yield* pipe(
       validateTimezone(tz),
       Effect.catchTag('InvalidTimezoneError', () =>
-        Effect.succeed(DEFAULT_TIMEZONE)
+        Effect.succeed(DEFAULT_ZONE)
       )
     )
 
     const zone = pipe(
       DateTime.zoneMakeNamed(validTimezone),
-      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_TIMEZONE))
+      Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe(DEFAULT_ZONE))
     )
 
     const zonedTime = pipe(
@@ -289,7 +290,7 @@ export const isInDoNotDisturbWindow = (
 
 export const recalculateNotificationSchedules = (
   notifications: NotificationWithBaseDate[],
-  newTimezone: string | null,
+  newTimezone: ZoneName | null,
   newPreferredTime: string | null
 ): Effect.Effect<NotificationScheduleUpdate[], never> =>
   Effect.forEach(

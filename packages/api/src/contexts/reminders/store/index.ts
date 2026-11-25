@@ -32,6 +32,7 @@ import {
   CareDays,
   pickNotificationTime,
   type VacationFields,
+  type ZoneName,
 } from '@lily/shared'
 import {
   Array,
@@ -124,14 +125,14 @@ export const plantsOf = (
       }),
   })
 
-const zoneOf = (timezone: string | null) =>
+const zoneOf = (timezone: ZoneName | null) =>
   pipe(
     Option.fromNullishOr(timezone),
     Option.flatMap(DateTime.zoneMakeNamed),
     Option.getOrElse(() => DateTime.zoneMakeNamedUnsafe('UTC'))
   )
 
-const noonOn = (day: CareDay, timezone: string | null): Date => {
+const noonOn = (day: CareDay, timezone: ZoneName | null): Date => {
   const {
     year,
     month,

@@ -44,14 +44,14 @@ const canonicalZones: ReadonlySet<string> = new Set(CANONICAL_TIME_ZONES)
  * (`Europe/Dublin`). A stored zone stays canonical so day math does not depend
  * on whichever tzdata build a runtime ships.
  */
-export const TimeZone = Schema.String.pipe(
+export const ZoneName = Schema.String.pipe(
   Schema.decodeTo(
     Schema.String.check(
       Schema.makeFilter(
         (zone) => canonicalZones.has(zone) || 'a canonical IANA time zone',
-        { identifier: 'TimeZone' }
+        { identifier: 'ZoneName' }
       )
-    ).pipe(Schema.brand('TimeZone')),
+    ).pipe(Schema.brand('ZoneName')),
     SchemaTransformation.transform({
       decode: (zone: string) =>
         Option.getOrElse(Record.get(TIME_ZONE_ALIASES, zone), () => zone),
@@ -60,10 +60,10 @@ export const TimeZone = Schema.String.pipe(
   )
 )
 
-export type TimeZone = typeof TimeZone.Type
+export type ZoneName = typeof ZoneName.Type
 
 export const validateTimezone = (
-  timezone: string
+  timezone: ZoneName
 ): Effect.Effect<string, InvalidTimezoneError> =>
   Effect.gen(function* () {
     const result = DateTime.zoneMakeNamed(timezone)
@@ -100,7 +100,7 @@ export const parseTime = (
     }
   })
 
-export const DEFAULT_TIMEZONE: TimeZone = TimeZone.make('UTC')
+export const DEFAULT_ZONE: ZoneName = ZoneName.make('UTC')
 export const DEFAULT_NOTIFICATION_TIME = '09:00'
 
 /**

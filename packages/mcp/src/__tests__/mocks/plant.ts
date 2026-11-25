@@ -1,4 +1,10 @@
-import { type CanopyId, CareDay, CareDays, careStatus } from '@lily/shared'
+import {
+  type CanopyId,
+  CareDay,
+  CareDays,
+  careStatus,
+  ZoneName,
+} from '@lily/shared'
 import type {
   Plant,
   PlantCareSchedule,
@@ -33,7 +39,7 @@ export const seen = (
 
 /** The plant-level care fields of an API plant. */
 export const careToday = {
-  careTimezone: 'UTC',
+  careTimezone: ZoneName.make('UTC'),
   today: CareDay.make('2024-01-01'),
 }
 

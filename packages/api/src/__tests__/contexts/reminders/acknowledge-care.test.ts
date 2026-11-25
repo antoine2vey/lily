@@ -5,10 +5,11 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { acknowledgeCare } from '@lily/api/contexts/reminders/consumers'
 import type { AppEvent } from '@lily/api/services/event-bus/types'
+import { ZoneName } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-const user = { ...mockUser1, timezone: 'America/Los_Angeles' }
+const user = { ...mockUser1, timezone: ZoneName.make('America/Los_Angeles') }
 
 const answersTo = async (sentAt: string, caredAt: string) => {
   vi.setSystemTime(new Date(caredAt))

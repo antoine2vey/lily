@@ -1,8 +1,8 @@
-import { DEFAULT_TIMEZONE, TimeZone } from '@lily/shared'
+import { DEFAULT_ZONE, ZoneName } from '@lily/shared'
 import { Option, pipe, Schema } from 'effect'
 
 export const resolveTimezone = (tz: string | null): string =>
-  Option.getOrElse(Option.fromNullishOr(tz), () => DEFAULT_TIMEZONE)
+  Option.getOrElse(Option.fromNullishOr(tz), () => DEFAULT_ZONE)
 
 /**
  * The `timezone` field to store for a device that signs in, in canonical form.
@@ -11,10 +11,10 @@ export const resolveTimezone = (tz: string | null): string =>
  */
 export const deviceTimezone = (
   reported: string | undefined
-): { readonly timezone?: TimeZone } =>
+): { readonly timezone?: ZoneName } =>
   pipe(
     Option.fromUndefinedOr(reported),
-    Option.flatMap(Schema.decodeUnknownOption(TimeZone)),
+    Option.flatMap(Schema.decodeUnknownOption(ZoneName)),
     Option.match({
       onNone: () => ({}),
       onSome: (timezone) => ({ timezone }),

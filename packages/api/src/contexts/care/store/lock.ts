@@ -28,6 +28,7 @@ import {
   CareDays,
   type CareType,
   type PlantOwner,
+  type ZoneName,
 } from '@lily/shared'
 import { and, eq, inArray } from 'drizzle-orm'
 import {
@@ -47,13 +48,13 @@ export interface ActedOn {
 }
 
 export interface PlantingGround {
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly accountsHeld: AccountsHeld
 }
 
 type ScheduleRow = typeof plantCareSchedules.$inferSelect
 
-const toSchedule = (row: ScheduleRow, timezone: string): Schedule => {
+const toSchedule = (row: ScheduleRow, timezone: ZoneName): Schedule => {
   const startedOn = CareDays.of(DateTime.makeUnsafe(row.createdAt), timezone)
   return {
     frequency: frequencyOfDays(row.frequencyDays),

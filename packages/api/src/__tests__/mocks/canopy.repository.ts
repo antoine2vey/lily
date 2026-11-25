@@ -7,6 +7,7 @@ import {
   type ICanopyRepository,
 } from '@lily/api/repositories/canopy.repository'
 import type { LanguageCode } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
 
 export interface MockMembership extends CanopyMembership {
@@ -61,7 +62,7 @@ export const createTestCanopyRow = (
 ): CanopyRow => ({
   id: 'canopy-1',
   name: 'Home',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   createdAt: new Date('2024-01-01'),

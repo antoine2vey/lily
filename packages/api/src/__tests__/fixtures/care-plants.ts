@@ -4,7 +4,7 @@ import {
   Frequency,
   LifeState,
 } from '@lily/api/contexts/care/domain/care-plant'
-import { CareDay, type CareType } from '@lily/shared'
+import { CareDay, type CareType, ZoneName } from '@lily/shared'
 import { Array, Option } from 'effect'
 
 export const TEST_CARE_TODAY = CareDay.make('2026-11-12')
@@ -38,7 +38,7 @@ export const createTestCarePlant = (
   id,
   owner: { _tag: 'User', userId: 'user-1' },
   life: LifeState.Living(),
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   today: TEST_CARE_TODAY,
   needsAttention: false,
   plans: [],

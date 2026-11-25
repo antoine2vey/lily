@@ -8,14 +8,18 @@ import {
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { actorDayTimezone } from '@lily/api/services/plants/helpers/care-context'
 import type { PlantOwner } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 describe('actorDayTimezone', () => {
-  const newYorker = createTestUser({ id: 'lily', timezone: 'America/New_York' })
+  const newYorker = createTestUser({
+    id: 'lily',
+    timezone: ZoneName.make('America/New_York'),
+  })
   const parisCanopy = createTestCanopyRow({
     id: mockCanopyId,
-    timezone: 'Europe/Paris',
+    timezone: ZoneName.make('Europe/Paris'),
   })
   const runFor = (
     owner: PlantOwner,

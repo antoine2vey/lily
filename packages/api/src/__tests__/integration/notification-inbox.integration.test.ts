@@ -34,6 +34,7 @@ import { getNotifications } from '@lily/api/services/notifications/endpoints/get
 import { followUser } from '@lily/api/services/social/endpoints/follow-user'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { NotificationsListResponse } from '@lily/shared/notification'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -120,7 +121,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `${stamp}@example.com`,
           name: stamp,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           language,
           publicProfile: true,
         })

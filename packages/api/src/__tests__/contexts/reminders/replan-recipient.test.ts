@@ -17,7 +17,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { Dirty, replan, replanPlants } from '@lily/api/contexts/reminders'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, DateTime, Effect, Layer, Option, References } from 'effect'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -94,12 +94,12 @@ const run = (
               createMockUserRepository([
                 createTestUser({
                   id: 'alex',
-                  timezone: 'UTC',
+                  timezone: ZoneName.make('UTC'),
                   preferredNotificationTime: '08:00',
                 }),
                 createTestUser({
                   id: 'lily',
-                  timezone: 'UTC',
+                  timezone: ZoneName.make('UTC'),
                   preferredNotificationTime: '19:00',
                 }),
               ]),
@@ -108,7 +108,7 @@ const run = (
                   canopies: [
                     createTestCanopyRow({
                       id: mockCanopyId,
-                      timezone: 'Europe/Paris',
+                      timezone: ZoneName.make('Europe/Paris'),
                     }),
                   ],
                   members,

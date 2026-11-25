@@ -1,4 +1,5 @@
 import type { Canopy, CanopyId } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 
 // The API client rejects path ids that are not UUIDs before sending a request.
 export const canopyIds = {
@@ -19,7 +20,7 @@ const invitation = (id: string, inviteeId: string, name: string) => ({
 export const mockCanopy: Canopy = {
   id: canopyIds.canopy,
   name: 'Home',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'owner',

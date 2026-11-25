@@ -29,6 +29,7 @@ import {
   VACATION_MAX_DURATION_DAYS,
   VacationDateError,
   VacationNotFoundError,
+  ZoneName,
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Array, DateTime, Option, Result, Struct } from 'effect'
@@ -518,7 +519,7 @@ describe('vacationOf', () => {
     }
     const held: Held = {
       userId: 'alex',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       stored: legacy,
       vacation: vacationOf(legacy, now),
     }
@@ -598,7 +599,7 @@ describe('daysAway', () => {
 describe('the account a vacation command holds', () => {
   const account = {
     id: 'alex',
-    timezone: 'Europe/Paris',
+    timezone: ZoneName.make('Europe/Paris'),
     ...vacationColumnsOf(Vacation.Scheduled(ahead)),
   }
 
@@ -616,7 +617,7 @@ describe('the account a vacation command holds', () => {
     expect(heldVacationOf({ ...account, status: 'active' }, now)).toEqual(
       Option.some({
         userId: 'alex',
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         stored: storedAs(Vacation.Scheduled(ahead)),
         vacation: Vacation.Scheduled(ahead),
       })
