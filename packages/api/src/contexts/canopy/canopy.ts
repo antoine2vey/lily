@@ -360,6 +360,7 @@ const movePlan = (by: string, plantId: string, roomId: Option.Option<string>) =>
 const ending = (userId: string) =>
   lockPlan({
     canopy: Find.OfMember({ userId }),
+    members: 'pin',
     invitations: InvitationScope.All(),
     rooms: RoomScope.OfCanopy(),
     plants: PlantScope.OfCanopy(),
@@ -469,6 +470,9 @@ export const CanopyLive = Layer.effect(
               body(
                 store.lockAndLoad({
                   ...ending(userId),
+                  // The plants stay, so no notification of another member is
+                  // deleted, and a pin would outlast the purge's photo erasure.
+                  members: 'read',
                   actor: Option.some(userId),
                   absenceOf: Option.some(userId),
                   plants: PlantScope.Leaver({ userId }),

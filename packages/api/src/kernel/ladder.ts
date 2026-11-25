@@ -6,8 +6,9 @@ import { Array, Data, Option, Order, Result } from 'effect'
  *
  * Two locks have no place on it. `SKIP LOCKED` never waits. `FOR KEY SHARE` on
  * an account row has no rank that fits every transaction. The foreign key of
- * any insert that names an account takes it without asking, and nothing here
- * sees that. One cycle through such an insert is known (issue #384).
+ * any write that names an account takes it without asking, and nothing here
+ * sees that. A transaction that deletes notifications and then makes such a
+ * write pins the account first, as a canopy leave does.
  */
 export const LADDER = [
   'StoreSyncKey',

@@ -37,6 +37,13 @@ export interface LockPlan {
   readonly canopy: Find
   readonly absenceOf: Option.Option<string>
   readonly accounts: ReadonlyArray<string>
+  /**
+   * `pin` reads the account of every member `FOR KEY SHARE`, for a command
+   * that deletes what members wait to be told and then writes a row that
+   * names one of them. The foreign key of that row takes the same lock, and
+   * a settings save holds the account before it deletes its notifications.
+   */
+  readonly members: 'read' | 'pin'
   readonly invitations: InvitationScope
   /** Before plants, as a room delete takes its row and then the plants in it. */
   readonly rooms: RoomScope
@@ -48,6 +55,7 @@ const LOCK_NOTHING: LockPlan = {
   canopy: Find.None(),
   absenceOf: Option.none(),
   accounts: [],
+  members: 'read',
   invitations: InvitationScope.None(),
   rooms: RoomScope.None(),
   plants: PlantScope.None(),
