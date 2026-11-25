@@ -663,6 +663,36 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       20_000
     )
 
+    it('quietConsumer: a push in flight is reported by its redelivery, not dropped by the gate of the redelivery', async () => {
+      const id = await dueRow()
+      await poll()
+
+      const quietConsumer = stopsAtTheSend()
+      const first = consume(quietConsumer.sends)
+      await quietConsumer.reached
+      await db
+        .update(schema.users)
+        .set({ status: 'suspended' })
+        .where(eq(schema.users.id, userId))
+      await claimsGoStale()
+      await sweep()
+      const alerter = createMockAlerter()
+      await consume(sendsAtOnce, alerter)
+
+      quietConsumer.resume()
+      await first
+
+      expect(
+        [
+          pushes.length,
+          await rowStatus(id),
+          await deadLetters(),
+          exhaustedAlerts(alerter),
+        ],
+        'pushes, the row, dead letters and alerts after the recipient was suspended during the push'
+      ).toEqual([1, 'failed', 1, 1])
+    }, 20_000)
+
     it('quietConsumer: a quiet consumer that fails after its redelivery took the row leaves the row to the redelivery', async () => {
       const id = await dueRow()
       await poll()
