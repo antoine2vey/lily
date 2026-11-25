@@ -17,7 +17,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --build tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "bun --watch src/index.ts",
     "start": "bun run src/index.ts",
     "sweep:orphans": "bun run src/scripts/sweep-orphans.ts",
