@@ -46,6 +46,11 @@ export const activityPushTokens = pgTable(
     // a retry or an adjacent scheduler poll cannot create two identical cards
     // before the device has registered its update token.
     lastStartSentAt: timestamp('last_start_sent_at', { withTimezone: true }),
+    // Start rows only: the activity id that push-to-start carried, and when
+    // the device posted the card of that start. Any other card's post leaves
+    // the start unconfirmed.
+    startActivityId: varchar('start_activity_id', { length: 64 }),
+    startConfirmedAt: timestamp('start_confirmed_at', { withTimezone: true }),
     updatedAt: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()

@@ -19,6 +19,7 @@ import {
 import { type IPushService, PushService } from '@lily/api/services/push/service'
 import {
   CARE_TASKS_ATTRIBUTES_TYPE,
+  LA_START_EXPIRATION,
   type LiveActivityPushMessage,
   PushConfigError,
   type PushMessage,
@@ -29,6 +30,7 @@ import {
 import {
   Array,
   DateTime,
+  Duration,
   Effect,
   HashSet,
   Layer,
@@ -44,10 +46,6 @@ import Expo, {
 
 // Combines Expo (regular pushes) and direct APNs (Live Activities). Expo
 // Push v4 rejects raw APNs push-to-start tokens, so LA events split off.
-
-// 1h delivery window for LA starts. Default APNs expiration of 0 means
-// "deliver now or drop" — lethal if the device is briefly offline.
-const LA_START_EXPIRATION_SECONDS = 60 * 60
 
 // APNs reasons meaning THIS DEVICE's token is unusable — retire it and let the
 // device re-register. (`DeviceTokenNotForTopic` = the stored token isn't a
@@ -293,7 +291,8 @@ export const ExpoPlusApnsPushServiceLive = Layer.effect(
               attributesType: CARE_TASKS_ATTRIBUTES_TYPE,
               ...buildAlertField(m.alert),
               expiration:
-                Math.floor(Date.now() / 1000) + LA_START_EXPIRATION_SECONDS,
+                Math.floor(Date.now() / 1000) +
+                Duration.toSeconds(LA_START_EXPIRATION),
             })
           ),
           Match.tag('LiveActivityUpdate', (m) =>

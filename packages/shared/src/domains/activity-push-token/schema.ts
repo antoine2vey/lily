@@ -19,6 +19,8 @@ export const ActivityPushToken = Schema.Struct({
   lastConfirmedAt: Schema.NullOr(Schema.DateFromString),
   lastFailedAt: Schema.NullOr(Schema.DateFromString),
   lastStartSentAt: Schema.NullOr(Schema.DateFromString),
+  startActivityId: Schema.NullOr(Schema.String),
+  startConfirmedAt: Schema.NullOr(Schema.DateFromString),
   updatedAt: Schema.DateFromString,
 })
 export type ActivityPushToken = typeof ActivityPushToken.Type
@@ -32,10 +34,13 @@ export type RegisterStartTokenRequest = typeof RegisterStartTokenRequest.Type
 
 // Client → server when ActivityKit streams an update token for a running
 // activity (sent separately because the activity itself was started via push).
+// `startId` is the activity id the push-to-start carried in its attributes.
+// Builds before #367 omit it, and their posts confirm no start.
 export const RegisterActivityTokenRequest = Schema.Struct({
   activityId: Schema.String,
   updateToken: Schema.String,
   deviceTokenId: Schema.String,
+  startId: Schema.optional(Schema.String),
 })
 export type RegisterActivityTokenRequest =
   typeof RegisterActivityTokenRequest.Type

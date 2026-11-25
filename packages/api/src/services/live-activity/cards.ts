@@ -6,10 +6,11 @@ import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { buildLiveActivityContentState } from '@lily/api/services/care-tasks/helpers/group-tasks'
 import { retireStartTokenForDevice } from '@lily/api/services/live-activity/retire-start-token'
 import { PushService } from '@lily/api/services/push/service'
-import type {
-  LiveActivityAlert,
-  LiveActivityContentState,
-  LiveActivityPushMessage,
+import {
+  LA_START_EXPIRATION,
+  type LiveActivityAlert,
+  type LiveActivityContentState,
+  type LiveActivityPushMessage,
 } from '@lily/api/services/push/types'
 import type { ActivityPushToken } from '@lily/shared'
 import { Array, DateTime, Duration, Effect, Match, Option, pipe } from 'effect'
@@ -23,10 +24,12 @@ import type { SqlError } from 'effect/sql/SqlError'
 // that confirmation arrives, every further care message for the user (the
 // overdue digest at a random morning slot, then the regular reminder at the
 // preferred time) falls through to the start path and creates another
-// identical card. So the guard spans the activity's own lifetime: it mirrors
-// the 10h soft TTL after which the activity scheduler expires update rows,
-// and stays well under the 24h cadence of the next day's reminder.
-const LA_START_COOLDOWN = Duration.hours(10)
+// identical card, and the server has no update token to end the first one.
+// So the guard spans the longest the card can stay on screen: iOS keeps a
+// Live Activity 8h, then up to 4h ended on the Lock Screen, and APNs may
+// deliver the start up to LA_START_EXPIRATION after we sent it. That stays
+// under the 24h cadence of the next day's reminder.
+const LA_START_COOLDOWN = Duration.sum(Duration.hours(12), LA_START_EXPIRATION)
 
 export type CardOutcome =
   | { readonly kind: 'accepted'; readonly apnsId: string }
@@ -137,23 +140,25 @@ const markEnded = (card: ActivityPushToken) =>
     })
   )
 
-// The row ends before the push, so a lost End push leaves no row behind.
+// The row ends once APNs takes the End push or calls its token dead. A failed
+// End leaves the row active, so the next batch updates the card instead of
+// starting one beside it, and the next reconcile sweep sends the End again.
 const endCards = (cards: ReadonlyArray<ActivityPushToken>) =>
   Effect.forEach(
     cards,
     (card) =>
-      markEnded(card).pipe(
-        Effect.andThen(
-          pushCard(
-            'end',
-            card.deviceTokenId,
-            {
-              _tag: 'LiveActivityEnd',
-              to: card.token,
-              dismissalPolicy: 'immediate',
-            },
-            Effect.void
-          )
+      pushCard(
+        'end',
+        card.deviceTokenId,
+        {
+          _tag: 'LiveActivityEnd',
+          to: card.token,
+          dismissalPolicy: 'immediate',
+        },
+        markEnded(card)
+      ).pipe(
+        Effect.tap(({ outcome }) =>
+          outcome.kind === 'accepted' ? markEnded(card) : Effect.void
         )
       ),
     { concurrency: 'unbounded' }
@@ -215,7 +220,8 @@ const sendStarts = (
     const claimed = yield* activityRepo.claimStartTokens(
       userId,
       Array.map(candidates, (tok) => tok.deviceTokenId),
-      cutoff
+      cutoff,
+      activityId
     )
     const startable = Array.filter(candidates, (tok) =>
       Array.contains(claimed, tok.deviceTokenId)

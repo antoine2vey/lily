@@ -1106,11 +1106,20 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
       }
 
-      const claimStartAs = (claimant: string) =>
+      const claimStartAs = (claimant: string, activityId = 'start-a') =>
         Effect.flatMap(ActivityPushTokenRepository, (repo) =>
-          repo.claimStartTokens(claimant, [deviceTokenId], minutesAgo(600))
+          repo.claimStartTokens(
+            claimant,
+            [deviceTokenId],
+            minutesAgo(780),
+            activityId
+          )
         )
       const claimStart = Effect.suspend(() => claimStartAs(userId))
+      const postCardOf = (startId: Option.Option<string>) =>
+        Effect.flatMap(ActivityPushTokenRepository, (repo) =>
+          repo.markStartTokenConfirmed(userId, deviceTokenId, startId)
+        )
 
       it('lets exactly one of two concurrent callers start the device', async () => {
         await insertStartToken()
@@ -1129,22 +1138,33 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(Arr.flatten(await result)).toEqual([deviceTokenId])
       })
 
-      it('frees the device again once the phone confirmed the start', async () => {
+      it('frees the device again once the phone posted the card of that start', async () => {
         await insertStartToken()
 
         expect(await run(claimStart)).toEqual([deviceTokenId])
         expect(await run(claimStart)).toEqual([])
 
-        await db
-          .update(schema.activityPushTokens)
-          .set({ lastConfirmedAt: new Date(Date.now() + 1000) })
-          .where(eq(schema.activityPushTokens.deviceTokenId, deviceTokenId))
+        await run(postCardOf(Option.some('start-a')))
 
-        expect(await run(claimStart)).toEqual([deviceTokenId])
+        expect(await run(claimStartAs(userId, 'start-b'))).toEqual([
+          deviceTokenId,
+        ])
+      })
+
+      it('keeps the device held when the phone posts the card of another start, or names none', async () => {
+        await insertStartToken()
+
+        expect(await run(claimStartAs(userId, 'start-b'))).toEqual([
+          deviceTokenId,
+        ])
+        await run(postCardOf(Option.some('start-a')))
+        await run(postCardOf(Option.none()))
+
+        expect(await run(claimStart)).toEqual([])
       })
 
       it('frees the device again once its unconfirmed start is older than the cutoff', async () => {
-        await insertStartToken({ lastStartSentAt: minutesAgo(601) })
+        await insertStartToken({ lastStartSentAt: minutesAgo(781) })
 
         expect(await run(claimStart)).toEqual([deviceTokenId])
       })

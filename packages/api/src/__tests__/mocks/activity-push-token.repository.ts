@@ -61,6 +61,8 @@ export const createMockActivityPushTokenRepository = (
           lastConfirmedAt: null,
           lastFailedAt: null,
           lastStartSentAt: null,
+          startActivityId: null,
+          startConfirmedAt: null,
           updatedAt: new Date(),
         }
         store.push(row)
@@ -81,6 +83,8 @@ export const createMockActivityPushTokenRepository = (
           lastConfirmedAt: null,
           lastFailedAt: null,
           lastStartSentAt: null,
+          startActivityId: null,
+          startConfirmedAt: null,
           updatedAt: new Date(),
         }
         store.push(row)
@@ -126,7 +130,7 @@ export const createMockActivityPushTokenRepository = (
         })
         return count
       }),
-    markStartTokenConfirmed: (userId, deviceTokenId) =>
+    markStartTokenConfirmed: (userId, deviceTokenId, startId) =>
       Effect.sync(() => {
         let count = 0
         const now = new Date()
@@ -136,7 +140,16 @@ export const createMockActivityPushTokenRepository = (
             row.userId === userId &&
             row.deviceTokenId === deviceTokenId
           ) {
-            store[i] = { ...row, lastConfirmedAt: now, updatedAt: now }
+            const confirmsStart = Option.exists(
+              startId,
+              (id) => id === row.startActivityId
+            )
+            store[i] = {
+              ...row,
+              lastConfirmedAt: now,
+              startConfirmedAt: confirmsStart ? now : row.startConfirmedAt,
+              updatedAt: now,
+            }
             count++
           }
         })
@@ -174,7 +187,7 @@ export const createMockActivityPushTokenRepository = (
         })
         return count
       }),
-    claimStartTokens: (_userId, deviceTokenIds, cutoff) =>
+    claimStartTokens: (_userId, deviceTokenIds, cutoff, activityId) =>
       Effect.sync(() => {
         const now = new Date()
         const targets = new Set(deviceTokenIds)
@@ -183,15 +196,16 @@ export const createMockActivityPushTokenRepository = (
           const sentAt = Option.fromNullishOr(row.lastStartSentAt)
           const startResolved = Option.match(sentAt, {
             onNone: () => true,
-            onSome: (sent) =>
-              sent < cutoff ||
-              Option.match(Option.fromNullishOr(row.lastConfirmedAt), {
-                onNone: () => false,
-                onSome: (confirmed) => confirmed >= sent,
-              }),
+            onSome: (sent) => sent < cutoff || row.startConfirmedAt !== null,
           })
           if (targets.has(row.deviceTokenId) && startResolved) {
-            store[i] = { ...row, lastStartSentAt: now, updatedAt: now }
+            store[i] = {
+              ...row,
+              lastStartSentAt: now,
+              startActivityId: activityId,
+              startConfirmedAt: null,
+              updatedAt: now,
+            }
             claimed.push(row.deviceTokenId)
           }
         })
