@@ -33,6 +33,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         FROM notifications n WHERE user_id = $1 ORDER BY id`
       try {
         await client.query('BEGIN')
+        // 0096 came after 0068, and its predicate compares type to an enum
+        // value, which a text column cannot hold.
+        await client.query('DROP INDEX notifications_daily_tip_day_unique')
         await client.query(
           'ALTER TABLE notifications ALTER COLUMN type SET DATA TYPE text USING type::text'
         )

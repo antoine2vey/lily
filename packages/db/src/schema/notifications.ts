@@ -80,6 +80,11 @@ export const notifications = pgTable(
     uniqueIndex('notifications_occasion_unique')
       .on(table.userId, table.plantId, table.type, table.occasionDay)
       .where(sql`${table.occasionDay} IS NOT NULL`),
+    uniqueIndex('notifications_daily_tip_day_unique')
+      .on(table.userId, table.occasionDay)
+      .where(
+        sql`${table.type} = 'daily_tip' AND ${table.occasionDay} IS NOT NULL`
+      ),
   ]
 )
 
