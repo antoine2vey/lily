@@ -119,7 +119,7 @@ export const USER_DEPENDENTS = {
   },
   'dead_letter_messages.user_id': {
     release: Keep({ reason: 'an operator reviews it' }),
-    purge: Reassign(),
+    purge: Cascade(),
     departure: personal,
   },
   'device_tokens.user_id': {
