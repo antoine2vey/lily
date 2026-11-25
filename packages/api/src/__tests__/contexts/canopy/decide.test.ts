@@ -44,7 +44,7 @@ import {
   CanopyId,
   LimitExceededError,
   type PlantOwner,
-  TimeZone,
+  ZoneName,
 } from '@lily/shared'
 import { Array, DateTime, Option, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -55,7 +55,7 @@ const homeId = CanopyId.make('canopy-1')
 const home: CanopyState = {
   id: homeId,
   name: 'Home',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   members: [
     {
       userId: 'alex',
@@ -117,7 +117,10 @@ describe('createCanopy', () => {
       accounts: new Map([
         [
           'sam',
-          account({ timezone: 'Europe/Paris', location: Option.some(paris) }),
+          account({
+            timezone: ZoneName.make('Europe/Paris'),
+            location: Option.some(paris),
+          }),
         ],
       ]),
     })
@@ -128,7 +131,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: TimeZone.make('Europe/Paris'),
+            timezone: ZoneName.make('Europe/Paris'),
             location: Option.some(paris),
           }),
           CanopyWrite.AddMember({
@@ -154,7 +157,7 @@ describe('createCanopy', () => {
           CanopyWrite.CreateCanopy({
             id: CanopyId.make('canopy-2'),
             name: 'Cabin',
-            timezone: TimeZone.make('UTC'),
+            timezone: ZoneName.make('UTC'),
             location: Option.none(),
           })
         )
@@ -163,31 +166,27 @@ describe('createCanopy', () => {
   })
 
   it.each([
-    ['Eire', 'Europe/Dublin'],
-    ['Asia/Calcutta', 'Asia/Kolkata'],
-    ['Mars/Base', 'UTC'],
-  ])(
-    'creates the canopy in the canonical zone of a creator on %j',
-    (stored, zone) => {
-      const decided = create({
-        ...HELD_NOTHING,
-        accounts: new Map([['sam', account({ timezone: stored })]]),
-      })
+    [ZoneName.make('Asia/Kolkata'), 'Asia/Kolkata'],
+    [null, 'UTC'],
+  ])('creates the canopy in the zone of a creator on %j', (stored, zone) => {
+    const decided = create({
+      ...HELD_NOTHING,
+      accounts: new Map([['sam', account({ timezone: stored })]]),
+    })
 
-      expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
-        Result.succeed(
-          Option.some(
-            CanopyWrite.CreateCanopy({
-              id: CanopyId.make('canopy-2'),
-              name: 'Cabin',
-              timezone: TimeZone.make(zone),
-              location: Option.none(),
-            })
-          )
+    expect(Result.map(decided, ({ writes }) => Array.head(writes))).toEqual(
+      Result.succeed(
+        Option.some(
+          CanopyWrite.CreateCanopy({
+            id: CanopyId.make('canopy-2'),
+            name: 'Cabin',
+            timezone: ZoneName.make(zone),
+            location: Option.none(),
+          })
         )
       )
-    }
-  )
+    )
+  })
 
   it('refuses a creator whose account is gone', () => {
     const decided = create({
@@ -225,7 +224,7 @@ describe('updateCanopy', () => {
   })
 
   it.each([
-    ['the timezone', { timezone: Option.some(TimeZone.make('Asia/Tokyo')) }],
+    ['the timezone', { timezone: Option.some(ZoneName.make('Asia/Tokyo')) }],
     ['the latitude', { latitude: Option.some(48.85) }],
     ['a cleared latitude', { latitude: Option.some(null) }],
     ['the longitude', { longitude: Option.some(2.35) }],
@@ -233,7 +232,7 @@ describe('updateCanopy', () => {
       'a name with a timezone',
       {
         name: Option.some('Nest'),
-        timezone: Option.some(TimeZone.make('Asia/Tokyo')),
+        timezone: Option.some(ZoneName.make('Asia/Tokyo')),
       },
     ],
   ] satisfies ReadonlyArray<readonly [string, Partial<CanopyChanges>]>)(
@@ -254,16 +253,16 @@ describe('updateCanopy', () => {
   )
 
   it('says the timezone changed only when the value differs', () => {
-    const events = (timezone: string) =>
+    const events = (timezone: ZoneName) =>
       Result.map(
-        update('alex', { timezone: Option.some(TimeZone.make(timezone)) }),
+        update('alex', { timezone: Option.some(ZoneName.make(timezone)) }),
         (decided) => decided.events
       )
 
-    expect(events('Asia/Tokyo')).toEqual(
+    expect(events(ZoneName.make('Asia/Tokyo'))).toEqual(
       Result.succeed([{ _tag: 'CanopyTimezoneChanged', canopyId: homeId }])
     )
-    expect(events('Europe/Paris')).toEqual(Result.succeed([]))
+    expect(events(ZoneName.make('Europe/Paris'))).toEqual(Result.succeed([]))
   })
 
   it('says nothing about the timezone when only the location moves', () => {

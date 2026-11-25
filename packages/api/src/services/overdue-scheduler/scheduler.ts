@@ -12,7 +12,7 @@ import {
 } from '@lily/api/services/plants/helpers/user-settings'
 import { plantCapsFor } from '@lily/api/services/subscriptions/plant-caps'
 import {
-  DEFAULT_TIMEZONE,
+  DEFAULT_ZONE,
   isOnVacation,
   nowAsDate,
   startOfTodayAsDate,
@@ -23,7 +23,7 @@ import { Array, Effect, Option, pipe, Record } from 'effect'
 const timezoneOf = (settings: UserNotificationSettings) =>
   pipe(
     Option.fromNullishOr(settings.timezone),
-    Option.getOrElse(() => DEFAULT_TIMEZONE)
+    Option.getOrElse(() => DEFAULT_ZONE)
   )
 
 const nudgeOverflow = (

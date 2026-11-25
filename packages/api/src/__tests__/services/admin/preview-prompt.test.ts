@@ -19,6 +19,7 @@ import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { previewPrompt } from '@lily/api/services/admin/endpoints/preview-prompt'
 import { chatStream } from '@lily/api/services/ai-chat/plant-chat'
+import { ZoneName } from '@lily/shared'
 import type { UIMessage } from 'ai'
 import { convertArrayToReadableStream, MockLanguageModelV4 } from 'ai/test'
 import { Layer, ManagedRuntime } from 'effect'
@@ -44,7 +45,7 @@ vi.mock('@ai-sdk/openai', async (importOriginal) => {
 
 const USER_ID = 'user-1'
 const PLANT_ID = 'plant-1'
-const ZONE = 'Pacific/Auckland'
+const ZONE = ZoneName.make('Pacific/Auckland')
 const QUESTION = 'Should I keep going with the plan?'
 
 const conversation = {

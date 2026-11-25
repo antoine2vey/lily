@@ -1,11 +1,11 @@
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import type { users } from '@lily/db/schema'
-import type { LanguageCode, VacationStatus } from '@lily/shared'
+import type { LanguageCode, VacationStatus, ZoneName } from '@lily/shared'
 import { Effect, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export interface UserNotificationSettings {
-  timezone: string | null
+  timezone: ZoneName | null
   preferredTime: string | null
   careReminders: boolean
   tips: boolean
@@ -105,15 +105,3 @@ export const getUserNotificationSettings = (
     Effect.flatMap(UserRepository, (repo) => repo.findById(userId)),
     notificationSettingsOf
   )
-
-export const getUserTimezone = (
-  userId: string,
-  defaultTimezone = 'UTC'
-): Effect.Effect<string, SqlError, UserRepository> =>
-  Effect.gen(function* () {
-    const { timezone } = yield* getUserNotificationSettings(userId)
-    return pipe(
-      Option.fromNullishOr(timezone),
-      Option.getOrElse(() => defaultTimezone)
-    )
-  })

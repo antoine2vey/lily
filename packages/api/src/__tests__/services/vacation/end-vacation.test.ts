@@ -16,7 +16,7 @@ import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { DueMove } from '@lily/api/contexts/care'
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { CARE_TYPES } from '@lily/shared'
+import { CARE_TYPES, ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, DateTime, Effect, Option, pipe, References } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,7 +34,7 @@ const buildScenario = (
 ) => {
   const owner = createTestUser({
     id: 'owner-1',
-    timezone: 'Europe/Paris',
+    timezone: ZoneName.make('Europe/Paris'),
     careReminders: true,
     vacationStatus: 'active',
     vacationStart: VACATION_START,
@@ -238,7 +238,7 @@ describe('ending a vacation that is over', () => {
   it('asks for no move of a Canopy plant, and rebuilds only the member own future reminder', async () => {
     const owner = createTestUser({
       id: 'owner-1',
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
       careReminders: true,
       vacationStatus: 'active',
       vacationStart: VACATION_START,
@@ -302,7 +302,7 @@ describe('ending a vacation that is over', () => {
   it('gives the member back a Canopy reminder due earlier today', async () => {
     const owner = createTestUser({
       id: 'owner-1',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       careReminders: true,
       vacationStatus: 'active',
       vacationStart: VACATION_START,
@@ -330,7 +330,12 @@ describe('ending a vacation that is over', () => {
       memberships: members,
       notifications,
       canopies: createCanopyStore({
-        canopies: [createTestCanopyRow({ id: mockCanopyId, timezone: 'UTC' })],
+        canopies: [
+          createTestCanopyRow({
+            id: mockCanopyId,
+            timezone: ZoneName.make('UTC'),
+          }),
+        ],
         members,
         plants: [
           {

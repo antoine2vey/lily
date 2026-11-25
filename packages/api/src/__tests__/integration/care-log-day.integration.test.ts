@@ -27,6 +27,7 @@ import { updateCareLog } from '@lily/api/services/care-logs/endpoints/update-car
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Option, pipe, Record } from 'effect'
@@ -80,7 +81,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       effect: Effect.Effect<A, E, Layer.Success<typeof CareLogsLive>>
     ) => Effect.runPromise(effect.pipe(Effect.provide(CareLogsLive)))
 
-    const addUser = async (timezone: string) => {
+    const addUser = async (timezone: ZoneName) => {
       const [user] = await db
         .insert(schema.users)
         .values({
@@ -208,7 +209,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('answers the stored day, not the day of the instant in UTC or in the timezone the owner has now', async () => {
-      const userId = await addUser('Asia/Tokyo')
+      const userId = await addUser(ZoneName.make('Asia/Tokyo'))
       const plantId = await addPlant({ userId })
       const logId = await addLog(
         plantId,
@@ -223,7 +224,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('gives recent activity and the last care of a schedule the local day of a care recorded when the UTC date is the day before', async () => {
-      const userId = await addUser('Pacific/Auckland')
+      const userId = await addUser(ZoneName.make('Pacific/Auckland'))
       const plantId = await addPlant({ userId })
       await addSchedule(plantId, 'watering', null)
 
@@ -242,7 +243,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('gives recent activity and the last care of a schedule the stored day, not the day of the instant in the timezone the owner has now', async () => {
-      const userId = await addUser('Asia/Tokyo')
+      const userId = await addUser(ZoneName.make('Asia/Tokyo'))
       const plantId = await addPlant({ userId })
       await addLog(plantId, LATE_EVENING_IN_NEW_YORK, '2024-03-09')
       await addSchedule(plantId, 'watering', LATE_EVENING_IN_NEW_YORK)
@@ -255,7 +256,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('gives a last care with no care log the day of its instant in the timezone of the owner', async () => {
-      const userId = await addUser('America/New_York')
+      const userId = await addUser(ZoneName.make('America/New_York'))
       const plantId = await addPlant({ userId })
       await addSchedule(plantId, 'watering', LATE_EVENING_IN_NEW_YORK)
       await addSchedule(plantId, 'misting', null)
@@ -268,7 +269,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('reads the last care day of a schedule from the care log of its own plant and care type', async () => {
-      const userId = await addUser('UTC')
+      const userId = await addUser(ZoneName.make('UTC'))
       const plantId = await addPlant({ userId })
       const otherPlantId = await addPlant({ userId })
       await addLog(plantId, LATE_EVENING_IN_NEW_YORK, '2024-03-09')
@@ -289,7 +290,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     it('answers a new care and an edited care with the day the command stored', async () => {
-      const userId = await addUser('America/New_York')
+      const userId = await addUser(ZoneName.make('America/New_York'))
       const plantId = await addPlant({ userId })
       const permit = carePermit(plantId, userId)
 

@@ -1,12 +1,13 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
-import type { User } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Data, Effect, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
 
-const mockUser: User = {
+const mockUser: UserFixture = {
   id: 'user-123',
   email: 'test@example.com',
   name: 'Test User',
@@ -29,7 +30,7 @@ const mockUser: User = {
   status: 'active',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-15'),
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
   publicProfile: true,
   shareGrowthData: true,
@@ -45,14 +46,14 @@ const mockUser: User = {
   vacationEnd: null,
 }
 
-const adminUser: User = {
+const adminUser: UserFixture = {
   ...mockUser,
   id: 'admin-123',
   email: 'admin@example.com',
   role: 'admin',
 }
 
-const suspendedUser: User = {
+const suspendedUser: UserFixture = {
   ...mockUser,
   id: 'suspended-123',
   email: 'suspended@example.com',

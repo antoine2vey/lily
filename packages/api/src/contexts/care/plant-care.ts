@@ -5,6 +5,7 @@ import {
   type CareType,
   careStatus,
   type PlantHealthStatus,
+  type ZoneName,
 } from '@lily/shared'
 import { Array, type DateTime } from 'effect'
 
@@ -21,7 +22,7 @@ export interface SeenSchedule extends StoredSchedule {
 }
 
 export interface PlantCare {
-  readonly careTimezone: string
+  readonly careTimezone: ZoneName
   readonly today: CareDay
   readonly schedules: Array<SeenSchedule>
   readonly health: PlantHealthStatus
@@ -49,7 +50,7 @@ const see = (
   condition: PlantCondition,
   living: boolean,
   schedules: ReadonlyArray<StoredSchedule>,
-  careTimezone: string,
+  careTimezone: ZoneName,
   now: DateTime.DateTime
 ): PlantCare => {
   const today = CareDays.today(careTimezone, now)
@@ -75,7 +76,7 @@ const see = (
 export const seePlantCare = (
   plant: { readonly health: PlantCondition; readonly diedAt: Date | null },
   schedules: ReadonlyArray<StoredSchedule>,
-  careTimezone: string,
+  careTimezone: ZoneName,
   now: DateTime.DateTime
 ): PlantCare =>
   see(plant.health, plant.diedAt === null, schedules, careTimezone, now)
@@ -83,6 +84,6 @@ export const seePlantCare = (
 export const seeLivingPlantCare = (
   condition: PlantCondition,
   schedules: ReadonlyArray<StoredSchedule>,
-  careTimezone: string,
+  careTimezone: ZoneName,
   now: DateTime.DateTime
 ): PlantCare => see(condition, true, schedules, careTimezone, now)

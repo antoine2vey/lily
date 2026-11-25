@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1 } from '@lily/api/__tests__/fixtures/users'
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockOAuthIdentityRepository } from '@lily/api/__tests__/mocks/oauth-identity.repository'
@@ -15,7 +16,6 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { oauthSignIn } from '@lily/api/services/auth/endpoints/oauth-signin'
 import type { OAuthIdentity } from '@lily/api/services/oauth-verifier/service'
-import type { User } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -39,7 +39,7 @@ const verifiedApple: OAuthIdentity = {
 }
 
 const buildLayer = (opts: {
-  users?: User[]
+  users?: UserFixture[]
   identities?: Parameters<typeof createMockOAuthIdentityRepository>[0]
   verifier?: Parameters<typeof createMockOAuthVerifier>[0]
 }) => {
@@ -118,7 +118,7 @@ describe('oauthSignIn', () => {
   })
 
   it('merges into existing verified user with same email', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: true,
@@ -141,7 +141,7 @@ describe('oauthSignIn', () => {
   })
 
   it('reuses linked identity without creating a new user or new link', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: true,
@@ -192,7 +192,7 @@ describe('oauthSignIn', () => {
   })
 
   it('refuses merge when neither side is verified', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: false,
@@ -237,7 +237,7 @@ describe('oauthSignIn', () => {
   })
 
   it('refuses to link an unverified provider email to an existing verified account', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: true,
@@ -279,7 +279,7 @@ describe('oauthSignIn', () => {
   })
 
   it('links a mixed-case provider email to the existing lowercase account', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: true,
@@ -319,7 +319,7 @@ describe('oauthSignIn', () => {
   })
 
   it('marks an unverified existing account verified when the provider verifies the email', async () => {
-    const existing: User = {
+    const existing: UserFixture = {
       ...mockUser1,
       email: 'merge@example.com',
       emailVerified: false,

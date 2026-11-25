@@ -1,4 +1,5 @@
 import type { CareTasksResponse } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { UserProfile } from '@lily/shared/auth'
 import { Option } from 'effect'
 import type { AuthState } from '@/contexts/AuthContext'
@@ -15,7 +16,7 @@ const tasks: CareTasksResponse = {
   windowDays: ['2026-03-26'],
 }
 
-const user = (timezone?: string): UserProfile => ({
+const user = (timezone?: ZoneName): UserProfile => ({
   id: 'user-1',
   email: 'a@b.c',
   name: null,
@@ -29,14 +30,14 @@ const user = (timezone?: string): UserProfile => ({
   status: 'active',
 })
 
-const authenticated = (timezone?: string): AuthState => ({
+const authenticated = (timezone?: ZoneName): AuthState => ({
   _tag: 'Authenticated',
   user: user(timezone),
   accessToken: 'token',
 })
 
 const base: TodayWidgetAppState = {
-  auth: authenticated('Europe/Paris'),
+  auth: authenticated(ZoneName.make('Europe/Paris')),
   localizationReady: true,
   appActive: true,
   tasks: Option.some(tasks),

@@ -52,6 +52,7 @@ import {
   type PlantOwner,
   type PlantSort,
   paginate,
+  type ZoneName,
 } from '@lily/shared'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import {
@@ -127,7 +128,7 @@ export type PlantWithRoom = Omit<RawPlant, 'health'> &
     health: PlantHealthStatus
     room: RoomRef
     schedules: PlantCareScheduleRef[]
-    careTimezone: string
+    careTimezone: ZoneName
     today: CareDay
   }
 
@@ -315,7 +316,7 @@ type ScheduleRow = StoredSchedule & {
 }
 
 type CareInput = {
-  careTimezone: string
+  careTimezone: ZoneName
   schedules: ReadonlyArray<ScheduleRow>
   now: DateTime.DateTime
 }
@@ -323,7 +324,7 @@ type CareInput = {
 const lastCareDayOf = (
   dayOfItsCareLog: string | null | undefined,
   lastCareAt: Date,
-  timezone: string
+  timezone: ZoneName
 ): CareDay =>
   pipe(
     Option.fromNullishOr(dayOfItsCareLog),

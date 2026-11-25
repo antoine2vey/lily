@@ -20,6 +20,7 @@ import { completeCarePlanStep } from '@lily/api/services/care-plans/endpoints/co
 import { withCarePlanStep } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { and, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'
@@ -71,7 +72,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             email: `${name}-${stamp}@example.com`,
             name: `${name}-${stamp}`,
             emailVerified: true,
-            timezone: 'UTC',
+            timezone: ZoneName.make('UTC'),
           }))
         )
         .returning()

@@ -1,81 +1,21 @@
 import { failureOf } from '@lily/shared/testing'
-import { Array, Effect, Option, Schema } from 'effect'
+import { Array, Effect, Option, Record, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
-import { COUNTRY_TIME_ZONES } from '../domains/notification/time-zones.generated'
+import { DEFAULT_ZONE, ZoneName } from '../domains/common/date/zone-name'
+import {
+  CANONICAL_TIME_ZONES,
+  COUNTRY_TIME_ZONES,
+  TIME_ZONE_ALIASES,
+} from '../domains/notification/time-zones.generated'
 import {
   DEFAULT_NOTIFICATION_TIME,
-  DEFAULT_TIMEZONE,
   InvalidTimeFormatError,
-  InvalidTimezoneError,
   parseTime,
   TimeString,
-  TimeZone,
   validateTimeFormat,
-  validateTimezone,
 } from '../domains/notification/timezone'
 
 describe('Timezone Utilities', () => {
-  describe('validateTimezone', () => {
-    it('should accept valid IANA timezone - UTC', async () => {
-      const result = await Effect.runPromise(validateTimezone('UTC'))
-
-      expect(result).toBe('UTC')
-    })
-
-    it('should accept valid IANA timezone - America/New_York', async () => {
-      const result = await Effect.runPromise(
-        validateTimezone('America/New_York')
-      )
-
-      expect(result).toBe('America/New_York')
-    })
-
-    it('should accept valid IANA timezone - Europe/Paris', async () => {
-      const result = await Effect.runPromise(validateTimezone('Europe/Paris'))
-
-      expect(result).toBe('Europe/Paris')
-    })
-
-    it('should accept valid IANA timezone - Asia/Tokyo', async () => {
-      const result = await Effect.runPromise(validateTimezone('Asia/Tokyo'))
-
-      expect(result).toBe('Asia/Tokyo')
-    })
-
-    it('should accept valid IANA timezone - Pacific/Auckland', async () => {
-      const result = await Effect.runPromise(
-        validateTimezone('Pacific/Auckland')
-      )
-
-      expect(result).toBe('Pacific/Auckland')
-    })
-
-    it('should fail for invalid timezone', async () => {
-      const result = await Effect.runPromiseExit(
-        validateTimezone('Invalid/Timezone')
-      )
-
-      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
-    })
-
-    it('should fail for empty string', async () => {
-      const result = await Effect.runPromiseExit(validateTimezone(''))
-
-      expect(failureOf(result)._tag).toBe('InvalidTimezoneError')
-    })
-
-    it('should return InvalidTimezoneError with correct timezone', async () => {
-      const result = await Effect.runPromiseExit(
-        validateTimezone('NotReal/Zone')
-      )
-
-      const error = failureOf(result)
-      expect(error).toBeInstanceOf(InvalidTimezoneError)
-      expect(error._tag).toBe('InvalidTimezoneError')
-      expect(error.timezone).toBe('NotReal/Zone')
-    })
-  })
-
   describe('validateTimeFormat', () => {
     it('should accept valid time - midnight', async () => {
       const result = await Effect.runPromise(validateTimeFormat('00:00'))
@@ -247,8 +187,8 @@ describe('Timezone Utilities', () => {
     })
   })
 
-  describe('TimeZone Schema', () => {
-    const decode = Schema.decodeUnknownOption(TimeZone)
+  describe('ZoneName Schema', () => {
+    const decode = Schema.decodeUnknownOption(ZoneName)
 
     it.each([
       ['Eire', 'Europe/Dublin'],
@@ -281,7 +221,27 @@ describe('Timezone Utilities', () => {
       ).toEqual([])
     })
 
-    it.each(['Not/AZone', 'europe/paris', 'PST8PDT', 'toString', ''])(
+    it.each([
+      ['europe/paris', 'Europe/Paris'],
+      ['utc', 'UTC'],
+      ['ASIA/CALCUTTA', 'Asia/Kolkata'],
+      ['EST5EDT', 'America/New_York'],
+      ['CST6CDT', 'America/Chicago'],
+      ['MST7MDT', 'America/Denver'],
+      ['PST8PDT', 'America/Los_Angeles'],
+      ['pst8pdt', 'America/Los_Angeles'],
+    ])('decodes %s to %s', (name, zone) => {
+      expect(decode(name)).toEqual(Option.some(zone))
+    })
+
+    it('folds no two zone names to the same spelling', () => {
+      const names = [...CANONICAL_TIME_ZONES, ...Record.keys(TIME_ZONE_ALIASES)]
+      expect(new Set(Array.map(names, (name) => name.toLowerCase())).size).toBe(
+        names.length
+      )
+    })
+
+    it.each(['Not/AZone', '+05:00', 'GMT+05:00', 'toString', 'tostring', ''])(
       'rejects %j',
       (zone) => {
         expect(decode(zone)).toEqual(Option.none())
@@ -289,7 +249,7 @@ describe('Timezone Utilities', () => {
     )
 
     it('rejects an alias on encode', () => {
-      expect(Option.isNone(Schema.encodeUnknownOption(TimeZone)('Eire'))).toBe(
+      expect(Option.isNone(Schema.encodeUnknownOption(ZoneName)('Eire'))).toBe(
         true
       )
     })
@@ -297,7 +257,7 @@ describe('Timezone Utilities', () => {
 
   describe('Default values', () => {
     it('should have correct default timezone', () => {
-      expect(DEFAULT_TIMEZONE).toBe('UTC')
+      expect(DEFAULT_ZONE).toBe('UTC')
     })
 
     it('should have correct default notification time', () => {
@@ -311,22 +271,9 @@ describe('Timezone Utilities', () => {
 
       expect(result).toBe('09:00')
     })
-
-    it('default timezone should be valid', async () => {
-      const result = await Effect.runPromise(validateTimezone(DEFAULT_TIMEZONE))
-
-      expect(result).toBe('UTC')
-    })
   })
 
   describe('Error classes', () => {
-    it('InvalidTimezoneError should be a Schema.TaggedError', () => {
-      const error = new InvalidTimezoneError({ timezone: 'Bad/Zone' })
-
-      expect(error._tag).toBe('InvalidTimezoneError')
-      expect(error.timezone).toBe('Bad/Zone')
-    })
-
     it('InvalidTimeFormatError should be a Schema.TaggedError', () => {
       const error = new InvalidTimeFormatError({ time: 'bad-time' })
 

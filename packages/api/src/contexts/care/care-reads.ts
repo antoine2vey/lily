@@ -16,8 +16,10 @@ import {
   type CareStatus,
   type CareType,
   careStatus,
+  DEFAULT_ZONE,
   type PlantOwner,
   type PlantSharer,
+  ZoneName,
 } from '@lily/shared'
 import { and, eq, inArray, isNotNull } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
@@ -74,7 +76,7 @@ export interface DueCare {
   readonly frequencyDays: number
   readonly dueDay: CareDay
   readonly today: CareDay
-  readonly careTimezone: string
+  readonly careTimezone: ZoneName
   readonly status: CareStatus
   readonly dueAt: Date
 }
@@ -85,7 +87,7 @@ export interface ScheduledCare {
   readonly frequencyDays: number
   readonly dueAt: Date
   readonly dueDay: CareDay
-  readonly careTimezone: string
+  readonly careTimezone: ZoneName
 }
 
 export interface DuePrune {
@@ -145,7 +147,7 @@ export const seeDue = (
   )
 
 // No timezone is ahead of UTC+14, so no plant's today is later than this one.
-const FURTHEST_AHEAD_TIMEZONE = 'Etc/GMT-14'
+const FURTHEST_AHEAD_TIMEZONE = ZoneName.make('Etc/GMT-14')
 
 export const duePrune = (
   upTo: BoundedWindow,
@@ -240,7 +242,7 @@ export const CareReadsLive = Layer.effect(
           const careTimezone = pipe(
             Option.fromNullishOr(row.canopyTimezone),
             Option.orElse(() => Option.fromNullishOr(row.userTimezone)),
-            Option.getOrElse(() => 'UTC')
+            Option.getOrElse(() => DEFAULT_ZONE)
           )
           return {
             careType: row.careType,

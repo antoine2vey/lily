@@ -5,6 +5,7 @@ import {
   createTestPlant,
   type PlantRecord,
 } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createMockActivityPushTokenRepository } from '@lily/api/__tests__/mocks/activity-push-token.repository'
 import { MockAlerterLive } from '@lily/api/__tests__/mocks/alerter'
@@ -34,7 +35,8 @@ import type { NotificationContent } from '@lily/api/services/notification-schedu
 import { buildNotificationContent } from '@lily/api/services/notification-scheduler/translations/care'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
 import type { PushMessage } from '@lily/api/services/push/types'
-import type { NotificationTopic, User } from '@lily/shared'
+import type { NotificationTopic } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array as Arr,
@@ -73,7 +75,7 @@ const defaultUser = createTestUser({
   id: 'user-1',
   careReminders: true,
   doNotDisturb: false,
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
 })
 
 type Delivered = QueueMessage & {
@@ -84,7 +86,7 @@ type Delivered = QueueMessage & {
 const deliver = (
   message: QueueMessage,
   notifications: ReturnType<typeof createTestNotification>[],
-  users: User[],
+  users: UserFixture[],
   plantsData: PlantRecord[],
   schedules: CareScheduleRow[]
 ) => {
@@ -123,7 +125,7 @@ const deliver = (
 
 const runPollAndEnqueue = (
   notifications: ReturnType<typeof createTestNotification>[],
-  users: User[],
+  users: UserFixture[],
   onEnqueue?: (topic: NotificationTopic, message: Delivered) => void,
   plantsData: PlantRecord[] = [],
   schedules: CareScheduleRow[] = []
@@ -625,7 +627,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -933,7 +935,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         language: 'fr',
       })
 
@@ -1036,7 +1038,7 @@ describe('Notification Scheduler', () => {
         id: 'user-2',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plant1 = createTestPlant({
@@ -1125,7 +1127,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         language: 'fr',
       })
 
@@ -1354,7 +1356,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         language: 'fr',
       })
 
@@ -1494,7 +1496,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const notification = createTestNotification({
@@ -1620,7 +1622,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         doNotDisturb: false,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -1650,7 +1652,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         doNotDisturb: true,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         doNotDisturbStart: '03:00',
         doNotDisturbEnd: '03:01',
       })
@@ -1684,7 +1686,7 @@ describe('Notification Scheduler', () => {
         id: 'user-no-dnd',
         doNotDisturb: false,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       // User with DND covering a very wide window (almost all day)
@@ -1692,7 +1694,7 @@ describe('Notification Scheduler', () => {
         id: 'user-with-dnd',
         doNotDisturb: true,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         doNotDisturbStart: '00:00',
         doNotDisturbEnd: '23:59',
       })
@@ -1741,7 +1743,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         doNotDisturb: true,
         careReminders: true,
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
         doNotDisturbStart: '22:00',
         doNotDisturbEnd: '01:30',
       })
@@ -1780,7 +1782,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         doNotDisturb: true,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         doNotDisturbStart: '22:00',
         doNotDisturbEnd: '25:99',
       })
@@ -1835,7 +1837,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         doNotDisturb: true,
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         doNotDisturbStart: '22:00',
         doNotDisturbEnd: '25:99',
       })
@@ -1894,18 +1896,22 @@ describe('Notification Scheduler', () => {
         createTestUser({
           id: 'user-a',
           doNotDisturb: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           doNotDisturbStart: '22:00',
           doNotDisturbEnd: '07:00',
         }),
         createTestUser({
           id: 'user-b',
           doNotDisturb: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           doNotDisturbStart: '21:00',
           doNotDisturbEnd: '08:00',
         }),
-        createTestUser({ id: 'user-c', doNotDisturb: false, timezone: 'UTC' }),
+        createTestUser({
+          id: 'user-c',
+          doNotDisturb: false,
+          timezone: ZoneName.make('UTC'),
+        }),
       ]
       const rows = Arr.map(['user-a', 'user-b', 'user-c'], (userId) =>
         createTestNotification({
@@ -1946,7 +1952,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -1974,7 +1980,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2002,7 +2008,7 @@ describe('Notification Scheduler', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2033,7 +2039,7 @@ describe('Notification Scheduler', () => {
         tips: false,
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2066,7 +2072,7 @@ describe('Notification Scheduler', () => {
         tips: true,
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2100,7 +2106,7 @@ describe('Notification Scheduler', () => {
         tips: false,
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2133,7 +2139,7 @@ describe('Notification Scheduler', () => {
         tips: false,
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pendingNotification = createTestNotification({
@@ -2285,7 +2291,7 @@ describe('Notification Scheduler', () => {
         careReminders: false,
         tips: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       await runPollAndEnqueue(notifications, [user], undefined, [plant])
@@ -2304,7 +2310,7 @@ describe('Notification Scheduler', () => {
         doNotDisturb: true,
         doNotDisturbStart: '00:00',
         doNotDisturbEnd: '23:59',
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       const enqueued: QueueMessage[] = []
 

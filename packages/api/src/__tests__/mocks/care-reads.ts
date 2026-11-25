@@ -7,7 +7,14 @@ import {
 import type { CareScheduleRow } from '@lily/api/repositories/care-schedule.repository'
 import { ownerOf } from '@lily/api/repositories/helpers/plant-owner'
 import type { plants } from '@lily/db/schema'
-import { CARE_TYPES, CareDay, CareDays, type CareType } from '@lily/shared'
+import {
+  CARE_TYPES,
+  CareDay,
+  CareDays,
+  type CareType,
+  DEFAULT_ZONE,
+  ZoneName,
+} from '@lily/shared'
 import {
   Array,
   DateTime,
@@ -27,7 +34,7 @@ export interface MockCareReadsData {
   rooms?: ReadonlyArray<{ id: string; name: string; icon: string }>
   mutes?: ReadonlyArray<{ userId: string; plantId: string }>
   /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
-  timezones?: Readonly<Record<string, string>>
+  timezones?: Readonly<Record<string, ZoneName>>
   dueUnlessScheduled?: boolean
 }
 
@@ -39,8 +46,8 @@ const dueToday = (
   careType,
   frequencyDays: 7,
   dueAt,
-  dueDay: CareDays.of(DateTime.makeUnsafe(dueAt), 'UTC'),
-  careTimezone: 'UTC',
+  dueDay: CareDays.of(DateTime.makeUnsafe(dueAt), ZoneName.make('UTC')),
+  careTimezone: ZoneName.make('UTC'),
   plant: {
     id: plantId,
     name: plantId,
@@ -120,7 +127,8 @@ export const createMockCareReads = (
                       const owner = ownerOf(plant)
                       const ownerId =
                         owner._tag === 'User' ? owner.userId : owner.canopyId
-                      const careTimezone = data.timezones?.[ownerId] ?? 'UTC'
+                      const careTimezone =
+                        data.timezones?.[ownerId] ?? DEFAULT_ZONE
                       return {
                         careType: schedule.careType,
                         frequencyDays: schedule.frequencyDays,

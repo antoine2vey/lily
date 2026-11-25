@@ -1,4 +1,5 @@
 import { buildPlantSystemPrompt } from '@lily/api/services/ai-chat/build-system-prompt'
+import { ZoneName } from '@lily/shared'
 import { DateTime } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -19,7 +20,7 @@ const promptFor = (ratings: {
     },
     daysSinceAdded: 10,
     careHistoryText: '',
-    timezone: 'UTC',
+    timezone: ZoneName.make('UTC'),
     now: DateTime.makeUnsafe('2026-06-10T08:00:00Z'),
   })
 
@@ -98,7 +99,7 @@ describe('buildPlantSystemPrompt schedules', () => {
       },
       daysSinceAdded: 10,
       careHistoryText: '',
-      timezone: row.zone,
+      timezone: ZoneName.make(row.zone),
       now: DateTime.makeUnsafe(row.now),
     })
 

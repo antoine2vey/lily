@@ -1,6 +1,7 @@
 import { DateTime, Duration, Schema } from 'effect'
 
-import { localDayKey, zoneFromNameOrUtc } from '../common/date/timezone'
+import { localDayKey, utcDayKey, zoneFromName } from '../common/date/timezone'
+import type { ZoneName } from '../common/date/zone-name'
 
 /** A calendar day (`YYYY-MM-DD`) in a plant's care context. */
 export const CareDay = Schema.String.check(
@@ -15,11 +16,11 @@ const MS_PER_DAY = Duration.toMillis(Duration.days(1))
 const utcMidnight = (day: CareDay): DateTime.Utc =>
   DateTime.makeUnsafe(`${day}T00:00:00.000Z`)
 
-const of = (instant: DateTime.DateTime, timezone: string): CareDay =>
-  CareDay.make(localDayKey(instant, timezone))
+const of = (instant: DateTime.DateTime, zone: ZoneName): CareDay =>
+  CareDay.make(localDayKey(instant, zone))
 
 const addDays = (day: CareDay, days: number): CareDay =>
-  of(DateTime.add(utcMidnight(day), { days }), 'UTC')
+  CareDay.make(utcDayKey(DateTime.add(utcMidnight(day), { days })))
 
 /** `to - from` in whole days; negative when `to` is before `from`. */
 const daysBetween = (from: CareDay, to: CareDay): number =>
@@ -27,24 +28,20 @@ const daysBetween = (from: CareDay, to: CareDay): number =>
     DateTime.toEpochMillis(utcMidnight(from))) /
   MS_PER_DAY
 
-const startOf = (day: CareDay, timezone: string): DateTime.Utc => {
+const startOf = (day: CareDay, zone: ZoneName): DateTime.Utc => {
   const parts = DateTime.toPartsUtc(utcMidnight(day))
   return DateTime.toUtc(
     DateTime.makeZonedUnsafe(
       { year: parts.year, month: parts.month, day: parts.day },
-      { timeZone: zoneFromNameOrUtc(timezone), adjustForTimeZone: true }
+      { timeZone: zoneFromName(zone), adjustForTimeZone: true }
     )
   )
 }
 
 export const CareDays = {
   of,
-  today: (timezone: string, now: DateTime.DateTime): CareDay =>
-    of(now, timezone),
-  /**
-   * First instant of `day` in `timezone`, in UTC when Intl does not know the
-   * zone (see `zoneFromNameOrUtc`).
-   */
+  today: (zone: ZoneName, now: DateTime.DateTime): CareDay => of(now, zone),
+  /** First instant of `day` in `zone`. */
   startOf,
   addDays,
   daysBetween,

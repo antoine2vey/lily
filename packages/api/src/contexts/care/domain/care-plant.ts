@@ -1,5 +1,5 @@
 import type { Plan } from '@lily/api/contexts/care/domain/plan'
-import type { CareDay, CareType, PlantOwner } from '@lily/shared'
+import type { CareDay, CareType, PlantOwner, ZoneName } from '@lily/shared'
 import { Data, DateTime, Option, Schema } from 'effect'
 
 /** Care days between two cares. */
@@ -40,7 +40,7 @@ export interface CarePlant {
   readonly id: string
   readonly owner: PlantOwner
   readonly life: LifeState
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly today: CareDay
   readonly needsAttention: boolean
   readonly lines: ReadonlyMap<CareType, CareLine>

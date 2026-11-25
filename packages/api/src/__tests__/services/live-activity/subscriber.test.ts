@@ -28,6 +28,7 @@ import {
   PushTokenInvalidatedError,
 } from '@lily/api/services/push/types'
 import type { ActivityPushToken } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { Array, Effect, Exit, Layer, Option, References } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -74,7 +75,7 @@ const run = async (
           createMockCanopyRepository(),
           createMockCareLogRepository([]),
           createMockUserRepository([
-            createTestUser({ id: 'user-1', timezone: 'UTC' }),
+            createTestUser({ id: 'user-1', timezone: ZoneName.make('UTC') }),
           ])
         )
       ),
@@ -318,9 +319,9 @@ describe('live-activity subscriber: CareLogCreated on a Canopy plant', () => {
             createMockCanopyRepository(createCanopyStore({ members, mutes })),
             createMockCareLogRepository([]),
             createMockUserRepository([
-              createTestUser({ id: 'alex', timezone: 'UTC' }),
-              createTestUser({ id: 'lily', timezone: 'UTC' }),
-              createTestUser({ id: 'sam', timezone: 'UTC' }),
+              createTestUser({ id: 'alex', timezone: ZoneName.make('UTC') }),
+              createTestUser({ id: 'lily', timezone: ZoneName.make('UTC') }),
+              createTestUser({ id: 'sam', timezone: ZoneName.make('UTC') }),
             ])
           )
         ),
@@ -430,8 +431,11 @@ describe('live-activity subscriber: CareLogCreated by a caretaker', () => {
             createMockCanopyRepository(),
             createMockCareLogRepository([]),
             createMockUserRepository([
-              createTestUser({ id: 'owner', timezone: 'UTC' }),
-              createTestUser({ id: 'caretaker', timezone: 'UTC' }),
+              createTestUser({ id: 'owner', timezone: ZoneName.make('UTC') }),
+              createTestUser({
+                id: 'caretaker',
+                timezone: ZoneName.make('UTC'),
+              }),
             ])
           )
         ),

@@ -6,12 +6,13 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
 import { weeklyRecap } from '@lily/api/services/weekly-recap-scheduler/scheduler'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it, onTestFinished, vi } from 'vitest'
 
 // Find a timezone where it's currently Sunday, or null if none found
-const findSundayTimezone = (): string | null => {
+const findSundayTimezone = (): ZoneName | null => {
   const candidates = [
     'Pacific/Auckland',
     'Asia/Tokyo',
@@ -26,13 +27,13 @@ const findSundayTimezone = (): string | null => {
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).weekDay === 0) return tz
+    if (DateTime.toParts(zoned).weekDay === 0) return ZoneName.make(tz)
   }
   return null
 }
 
 // Find a timezone where it's currently NOT Sunday
-const findNonSundayTimezone = (): string | null => {
+const findNonSundayTimezone = (): ZoneName | null => {
   const candidates = [
     'UTC',
     'America/New_York',
@@ -46,7 +47,7 @@ const findNonSundayTimezone = (): string | null => {
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).weekDay !== 0) return tz
+    if (DateTime.toParts(zoned).weekDay !== 0) return ZoneName.make(tz)
   }
   return null
 }
@@ -62,7 +63,10 @@ describe('processWeeklyRecap', () => {
       vi.useRealTimers()
     })
 
-    const user = makeUserWithSettings({ id: 'user-1', timezone: 'UTC' })
+    const user = makeUserWithSettings({
+      id: 'user-1',
+      timezone: ZoneName.make('UTC'),
+    })
     const notifications: Notification[] = []
 
     const layer = Layer.mergeAll(

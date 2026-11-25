@@ -44,7 +44,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { type CareDay, CareDays, type PlantOwner } from '@lily/shared'
+import { type CareDay, CareDays, type PlantOwner, ZoneName } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { defectOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
@@ -104,7 +104,9 @@ type App =
   | Absence
 
 const aTimezoneOnAnotherDay = () =>
-  new Date().getUTCHours() >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+  ZoneName.make(
+    new Date().getUTCHours() >= 10 ? 'Pacific/Kiritimati' : 'Pacific/Pago_Pago'
+  )
 
 const request = {
   name: 'Fern',
@@ -181,7 +183,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       careType: 'watering' | 'misting',
       frequencyDays: number,
       dueDay: CareDay,
-      timezone: string
+      timezone: ZoneName
     ) => ({
       careType,
       frequencyDays,
@@ -240,7 +242,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return row
     }
 
-    const todayIn = (timezone: string) =>
+    const todayIn = (timezone: ZoneName) =>
       CareDays.today(timezone, DateTime.nowUnsafe())
 
     beforeAll(async () => {
@@ -271,14 +273,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!user) throw new Error('user insert returned nothing')
       alex = user.id
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('canopy insert returned nothing')
       canopyId = canopy.id
@@ -303,8 +305,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           rows.map((row) => [row.id, row.userId, row.createdByUserId])
         ).toEqual([[created.id, alex, alex]])
         expect(await schedulesOf(created.id)).toEqual([
-          dueOn('watering', 7, todayIn('UTC'), 'UTC'),
-          dueOn('misting', 3, todayIn('UTC'), 'UTC'),
+          dueOn(
+            'watering',
+            7,
+            todayIn(ZoneName.make('UTC')),
+            ZoneName.make('UTC')
+          ),
+          dueOn(
+            'misting',
+            3,
+            todayIn(ZoneName.make('UTC')),
+            ZoneName.make('UTC')
+          ),
         ])
         expect((await published()).sort()).toEqual([
           'care:PlantLifeChanged:Planted',
@@ -404,7 +416,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const created = await done(alex, createPlant(request))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(created.careTimezone).toBe(timezone)
         expect(await schedulesOf(created.id)).toEqual([
           dueOn('watering', 7, todayIn(timezone), timezone),
@@ -423,7 +435,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createPlant({ ...request, owner: 'canopy' })
         )
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(created.careTimezone).toBe(timezone)
         expect(await schedulesOf(created.id)).toEqual([
           dueOn('watering', 7, todayIn(timezone), timezone),
@@ -452,7 +464,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     describe('reviving a plant', () => {
-      const restarted = (timezone: string) => [
+      const restarted = (timezone: ZoneName) => [
         dueOn('watering', 7, CareDays.addDays(todayIn(timezone), 7), timezone),
         dueOn('misting', 3, CareDays.addDays(todayIn(timezone), 3), timezone),
       ]
@@ -467,7 +479,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const revived = await done(alex, reviveAsCurrentUser(plantId))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(revived.diedAt).toBeNull()
         expect(await schedulesOf(plantId)).toEqual(restarted(timezone))
         expect((await published()).sort()).toEqual([
@@ -487,7 +499,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await done(alex, reviveAsCurrentUser(plantId))
 
-        expect(todayIn(timezone)).not.toBe(todayIn('UTC'))
+        expect(todayIn(timezone)).not.toBe(todayIn(ZoneName.make('UTC')))
         expect(await schedulesOf(plantId)).toEqual(restarted(timezone))
       })
     })

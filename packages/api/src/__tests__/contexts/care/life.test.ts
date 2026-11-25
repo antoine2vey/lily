@@ -30,6 +30,7 @@ import {
   CareDay,
   LimitExceededError,
   type PlantOwner,
+  ZoneName,
 } from '@lily/shared'
 import { Array, DateTime, Option, Result } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -62,7 +63,7 @@ describe('plantNew', () => {
       ['misting', Option.none()],
       ['repotting', Option.some(Frequency.make(180))],
     ],
-    timezone: 'Pacific/Kiritimati',
+    timezone: ZoneName.make('Pacific/Kiritimati'),
     today,
   } satisfies NewPlant
   const planted = Result.getOrThrow(plantNew(fern, new Set(['alex', 'lily'])))
@@ -83,7 +84,7 @@ describe('plantNew', () => {
           startedOn: today,
           dueDay: today,
         },
-        timezone: 'Pacific/Kiritimati',
+        timezone: ZoneName.make('Pacific/Kiritimati'),
       }),
       CareWrite.PutSchedule({
         plantId: 'fern',
@@ -93,7 +94,7 @@ describe('plantNew', () => {
           startedOn: today,
           dueDay: today,
         },
-        timezone: 'Pacific/Kiritimati',
+        timezone: ZoneName.make('Pacific/Kiritimati'),
       }),
     ])
   })
@@ -303,7 +304,7 @@ describe('revive', () => {
           startedOn: CareDay.make('2026-10-01'),
           dueDay: CareDay.make('2026-11-19'),
         },
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
     expect(TEST_CARE_TODAY).toBe('2026-11-12')

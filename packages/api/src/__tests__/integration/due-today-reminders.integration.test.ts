@@ -26,7 +26,7 @@ import { pollAndTransition } from '@lily/api/services/delegation-scheduler/sched
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Effect, Layer, ManagedRuntime, References } from 'effect'
@@ -96,7 +96,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
           ...extra,
@@ -221,7 +221,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       await as(
         owner,
-        updateUserSettings({ timezone: TimeZone.make('Europe/Paris') })
+        updateUserSettings({ timezone: ZoneName.make('Europe/Paris') })
       )
 
       expect(await dueWithinADay()).toEqual(['fern -> owner'])

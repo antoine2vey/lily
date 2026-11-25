@@ -17,6 +17,7 @@ import {
   toIsoString,
   toNativeDate,
 } from './parse'
+import type { ZoneName } from './zone-name'
 
 /**
  * Format date as day of week (e.g., "Monday").
@@ -413,7 +414,7 @@ export const formatApiDateAsNextDate = (
  */
 export const getDateGroupLabel = (
   dateTime: DateTime.DateTime,
-  timezone: string,
+  timezone: ZoneName,
   locale?: Intl.LocalesArgument
 ): string => {
   if (isToday(dateTime, DateTime.nowUnsafe(), timezone)) return 'Today'
@@ -432,7 +433,7 @@ export const getDateGroupLabel = (
  */
 export const getApiDateGroupLabel = (
   dateInput: DateInput,
-  timezone: string,
+  timezone: ZoneName,
   defaultValue = 'Unknown',
   locale?: Intl.LocalesArgument
 ): string =>
@@ -481,14 +482,14 @@ export const formatIsoDate = (
  *
  * @param dateInput - Date input (Date, string, number, or null/undefined)
  * @param now - The current instant
- * @param timezone - IANA timezone string, UTC when unknown
+ * @param timezone - Zone whose days count
  * @param defaultValue - Value to return if date is invalid (default: "Not scheduled")
  * @returns Human-readable string describing days until the date
  */
 export const formatDaysUntilHuman = (
   dateInput: DateInput,
   now: DateTime.DateTime,
-  timezone: string,
+  timezone: ZoneName,
   defaultValue = 'Not scheduled'
 ): string =>
   pipe(

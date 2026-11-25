@@ -40,6 +40,7 @@ import {
   type CareType,
   type LimitExceededError,
   type PlantOwner,
+  type ZoneName,
 } from '@lily/shared'
 import type { CarePlanSource } from '@lily/shared/care-plan'
 import type { PlantDeathCause } from '@lily/shared/plant'
@@ -70,7 +71,7 @@ export type CareWrite = Data.TaggedEnum<{
     readonly plantId: string
     readonly careType: CareType
     readonly schedule: Schedule
-    readonly timezone: string
+    readonly timezone: ZoneName
   }
   DropSchedule: { readonly plantId: string; readonly careType: CareType }
   CompletePlanStep: {

@@ -32,9 +32,11 @@ import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { checkAndCreateOverdueReminders } from '@lily/api/services/overdue-scheduler/scheduler'
 import type { userSubscriptions } from '@lily/db/schema'
 import {
+  DEFAULT_ZONE,
   pickNotificationTime,
   type SlotRecipient,
   type TierConfig,
+  ZoneName,
 } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { failureOf } from '@lily/shared/testing'
@@ -105,7 +107,10 @@ const check = (
             mutes,
             caretakers: activeCaretakers(delegationData),
             timezones: Object.fromEntries([
-              ...Arr.map(users, (u) => [u.id, u.timezone ?? 'UTC'] as const),
+              ...Arr.map(
+                users,
+                (u) => [u.id, u.timezone ?? DEFAULT_ZONE] as const
+              ),
               ...Arr.map(canopies, (c) => [c.id, c.timezone] as const),
             ]),
           }),
@@ -190,7 +195,7 @@ const premium = (userId: string): typeof userSubscriptions.$inferSelect => ({
 
 const anyone: SlotRecipient = {
   id: 'test-user',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   doNotDisturb: false,
   doNotDisturbStart: null,
   doNotDisturbEnd: null,
@@ -345,7 +350,10 @@ describe('pickNotificationTime', () => {
   describe('timezone handling', () => {
     it('should convert correctly for America/New_York', () => {
       const date = Effect.runSync(
-        pickNotificationTime({ ...anyone, timezone: 'America/New_York' }, 0.25)
+        pickNotificationTime(
+          { ...anyone, timezone: ZoneName.make('America/New_York') },
+          0.25
+        )
       )
       // The returned Date is in UTC, but should represent 6:00-8:00 ET
       // ET is UTC-5 or UTC-4, so UTC hours should be 10-12 or 11-13
@@ -354,7 +362,10 @@ describe('pickNotificationTime', () => {
 
     it('should convert correctly for Europe/Paris', () => {
       const date = Effect.runSync(
-        pickNotificationTime({ ...anyone, timezone: 'Europe/Paris' }, 0.75)
+        pickNotificationTime(
+          { ...anyone, timezone: ZoneName.make('Europe/Paris') },
+          0.75
+        )
       )
       // Paris is UTC+1 or UTC+2, so 18:00 Paris = 16:00 or 17:00 UTC
       expect(date instanceof Date).toBe(true)
@@ -362,20 +373,13 @@ describe('pickNotificationTime', () => {
 
     it('should convert correctly for Asia/Tokyo', () => {
       const date = Effect.runSync(
-        pickNotificationTime({ ...anyone, timezone: 'Asia/Tokyo' }, 0.0)
+        pickNotificationTime(
+          { ...anyone, timezone: ZoneName.make('Asia/Tokyo') },
+          0.0
+        )
       )
       // Tokyo is UTC+9, so 6:00 Tokyo = 21:00 UTC (previous day)
       expect(date instanceof Date).toBe(true)
-    })
-
-    it('should fall back to UTC for invalid timezone', () => {
-      const date = Effect.runSync(
-        pickNotificationTime({ ...anyone, timezone: 'Invalid/Timezone' }, 0.25)
-      )
-      const hours = date.getUTCHours()
-      // Should use UTC, so morning window is 6:00-8:00 UTC
-      expect(hours).toBeGreaterThanOrEqual(6)
-      expect(hours).toBeLessThan(8)
     })
   })
 })
@@ -389,7 +393,7 @@ describe('checkAndCreateOverdueReminders', () => {
     id: 'user-1',
     careReminders: true,
     doNotDisturb: false,
-    timezone: 'UTC',
+    timezone: ZoneName.make('UTC'),
   })
 
   describe('core behavior', () => {
@@ -528,7 +532,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plant = createTestPlant({
@@ -565,7 +569,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-1',
         careReminders: false,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plant = createTestPlant({
@@ -590,7 +594,7 @@ describe('checkAndCreateOverdueReminders', () => {
         doNotDisturb: true,
         doNotDisturbStart: '05:00',
         doNotDisturbEnd: '23:00',
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plant = createTestPlant({
@@ -613,7 +617,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-owner',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plant = createTestPlant({
@@ -641,7 +645,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-caretaker',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       await runCheck([plant], [owner, caretaker], notifications, {
@@ -666,13 +670,13 @@ describe('checkAndCreateOverdueReminders', () => {
       id: 'user-owner',
       careReminders: true,
       doNotDisturb: false,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     })
     const caretaker = createTestUser({
       id: 'user-caretaker',
       careReminders: true,
       doNotDisturb: false,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     })
     const delegationOf = (plantIds: ReadonlyArray<string>) => ({
       delegations: [
@@ -872,13 +876,13 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-a',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       const userB = createTestUser({
         id: 'user-b',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plantsA = [
@@ -935,13 +939,13 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-a',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       const userB = createTestUser({
         id: 'user-b',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const plantA = createTestPlant({
@@ -1344,13 +1348,13 @@ describe('checkAndCreateOverdueReminders', () => {
       id: 'user-1',
       careReminders: true,
       doNotDisturb: false,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     })
     const member2 = createTestUser({
       id: 'user-2',
       careReminders: true,
       doNotDisturb: false,
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
     })
     const memberships = [
       createTestMembership({ userId: 'user-1', role: 'owner' }),
@@ -1386,7 +1390,7 @@ describe('checkAndCreateOverdueReminders', () => {
         id: 'user-2',
         careReminders: true,
         doNotDisturb: false,
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
       })
       const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
       const notifications: Notification[] = []
@@ -1412,7 +1416,10 @@ describe('checkAndCreateOverdueReminders', () => {
         {
           memberships,
           canopies: [
-            createTestCanopyRow({ id: mockCanopyId, timezone: 'Europe/Paris' }),
+            createTestCanopyRow({
+              id: mockCanopyId,
+              timezone: ZoneName.make('Europe/Paris'),
+            }),
           ],
         }
       )

@@ -7,6 +7,7 @@ import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { DiagnosisRepository } from '@lily/api/repositories/diagnosis.repository'
 import { createDiagnosisTool } from '@lily/api/services/ai-chat/tools/create-diagnosis'
+import { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import type { ToolExecutionOptions } from 'ai'
 import { Array, Effect, Layer, ManagedRuntime, Option } from 'effect'
@@ -57,6 +58,7 @@ describe('createDiagnosisTool', () => {
   it('creates diagnosis with all fields including optional ones', async () => {
     const managedRuntime = runtimeOver()
     const diagTool = createDiagnosisTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -90,6 +92,7 @@ describe('createDiagnosisTool', () => {
   it('creates diagnosis without optional fields', async () => {
     const managedRuntime = runtimeOver()
     const diagTool = createDiagnosisTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -107,6 +110,7 @@ describe('createDiagnosisTool', () => {
   it('writes the treatment as a proposed plan linked to the diagnosis', async () => {
     const managedRuntime = runtimeOver()
     const diagTool = createDiagnosisTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -144,6 +148,7 @@ describe('createDiagnosisTool', () => {
       createTestCarePlant('plant-1', { life: LifeState.Dead() })
     )
     const diagTool = createDiagnosisTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -162,6 +167,7 @@ describe('createDiagnosisTool', () => {
   it('stores the plant of the permit and the user of the conversation', async () => {
     const managedRuntime = runtimeOver(createTestCarePlant('plant-99'))
     const diagTool = createDiagnosisTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'owner-42',
       permit: chatPermit('plant-99', 'owner-42'),

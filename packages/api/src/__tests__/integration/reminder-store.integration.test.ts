@@ -27,7 +27,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDay, CareDays } from '@lily/shared'
+import { CareDay, CareDays, ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -93,7 +93,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone,
+          timezone: sql`${timezone}`,
           preferredNotificationTime: time,
         })
         .returning()
@@ -164,7 +164,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.notifications)
         .orderBy(asc(schema.notifications.createdAt))
 
-    const sendTime = (day: CareDay, timezone: string, hour: number) =>
+    const sendTime = (day: CareDay, timezone: ZoneName, hour: number) =>
       DateTime.add(CareDays.startOf(day, timezone), { hours: hour })
 
     const put = (userId: string, scheduledAt: DateTime.Utc) =>
@@ -198,12 +198,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           sql.raw(`TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE`)
         )
       }
-      alex = await user('Alex', 'UTC', '09:00')
-      lily = await user('Lily', 'Pacific/Auckland', '08:00')
-      sam = await user('Sam', 'UTC', '09:00')
+      alex = await user('Alex', ZoneName.make('UTC'), '09:00')
+      lily = await user('Lily', ZoneName.make('Pacific/Auckland'), '08:00')
+      sam = await user('Sam', ZoneName.make('UTC'), '09:00')
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       await db.insert(schema.canopyMembers).values([
@@ -211,7 +211,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         { canopyId: canopy.id, userId: lily, role: 'member' },
       ])
       const inThreeDays = new Date(Date.now() + 3 * DAY_MS)
-      dueDay = CareDays.of(DateTime.makeUnsafe(inThreeDays), 'UTC')
+      dueDay = CareDays.of(
+        DateTime.makeUnsafe(inThreeDays),
+        ZoneName.make('UTC')
+      )
       shared = await plant({ canopyId: canopy.id }, 'Shared Fern', inThreeDays)
       personal = await plant({ userId: sam }, 'Sam Pothos', inThreeDays)
     })
@@ -262,13 +265,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             Option.getOrNull
           )
         expect(sendTimeOf(alex)).toBe(
-          DateTime.formatIso(sendTime(dueDay, 'UTC', 9))
+          DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 9))
         )
         expect(sendTimeOf(lily)).toBe(
-          DateTime.formatIso(sendTime(dueDay, 'Pacific/Auckland', 8))
+          DateTime.formatIso(
+            sendTime(dueDay, ZoneName.make('Pacific/Auckland'), 8)
+          )
         )
         expect(sendTimeOf(sam)).toBe(
-          DateTime.formatIso(sendTime(dueDay, 'UTC', 9))
+          DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 9))
         )
       })
 
@@ -420,7 +425,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     describe('apply', () => {
       it('writes a new pending row with the day it is about', async () => {
-        const at = sendTime(dueDay, 'UTC', 9)
+        const at = sendTime(dueDay, ZoneName.make('UTC'), 9)
         await run(apply([put(alex, at)]))
 
         expect(await stored()).toEqual([
@@ -439,7 +444,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
       it('re-times a pending row in place: same id, new time, occasion recorded', async () => {
         const existing = await seed({ userId: alex })
-        const at = sendTime(dueDay, 'UTC', 11)
+        const at = sendTime(dueDay, ZoneName.make('UTC'), 11)
         await run(apply([retime(alex, at, existing)]))
 
         expect(
@@ -468,7 +473,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           status: 'sent',
           scheduledAt: before,
         })
-        const at = sendTime(dueDay, 'UTC', 11)
+        const at = sendTime(dueDay, ZoneName.make('UTC'), 11)
         await run(
           apply([
             retime(alex, at, retried),
@@ -501,8 +506,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         await run(
           apply([
-            put(alex, sendTime(dueDay, 'UTC', 9)),
-            put(lily, sendTime(dueDay, 'UTC', 9)),
+            put(alex, sendTime(dueDay, ZoneName.make('UTC'), 9)),
+            put(lily, sendTime(dueDay, ZoneName.make('UTC'), 9)),
           ])
         )
 
@@ -516,8 +521,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       it('leaves one row when two writers plan the same occasion at once without the keys', async () => {
         const firstWrote = Deferred.makeUnsafe<void>()
         const letFirstCommit = Deferred.makeUnsafe<void>()
-        const early = sendTime(dueDay, 'UTC', 9)
-        const late = sendTime(dueDay, 'UTC', 11)
+        const early = sendTime(dueDay, ZoneName.make('UTC'), 9)
+        const late = sendTime(dueDay, ZoneName.make('UTC'), 11)
         const first = run(
           Effect.flatMap(SqlClient.SqlClient, (client) =>
             client.withTransaction(
@@ -555,7 +560,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           status: 'queued',
           ...standing,
         })
-        const at = sendTime(dueDay, 'UTC', 11)
+        const at = sendTime(dueDay, ZoneName.make('UTC'), 11)
         await run(
           apply([
             put(alex, at),
@@ -583,7 +588,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           queuedAt: new Date(),
           occasionDay: earlier,
         })
-        await run(apply([put(alex, sendTime(dueDay, 'UTC', 9))]))
+        await run(apply([put(alex, sendTime(dueDay, ZoneName.make('UTC'), 9))]))
 
         await run(
           Effect.flatMap(NotificationDelivery, (repo) =>
@@ -622,7 +627,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const exit = await Effect.runPromiseExit(
           apply([
             drop(old, alex),
-            put(NOBODY, sendTime(dueDay, 'UTC', 9)),
+            put(NOBODY, sendTime(dueDay, ZoneName.make('UTC'), 9)),
           ]).pipe(
             transactInMemory,
             Effect.provide(StoreLive),
@@ -666,19 +671,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             [
               alex,
               shared,
-              DateTime.formatIso(sendTime(dueDay, 'UTC', 9)),
+              DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 9)),
               dueDay,
             ],
             [
               lily,
               shared,
-              DateTime.formatIso(sendTime(dueDay, 'Pacific/Auckland', 8)),
+              DateTime.formatIso(
+                sendTime(dueDay, ZoneName.make('Pacific/Auckland'), 8)
+              ),
               dueDay,
             ],
             [
               sam,
               personal,
-              DateTime.formatIso(sendTime(dueDay, 'UTC', 9)),
+              DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 9)),
               dueDay,
             ],
           ].sort()
@@ -702,7 +709,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             before?.[0],
             sam,
             personal,
-            DateTime.formatIso(sendTime(dueDay, 'UTC', 11)),
+            DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 11)),
             dueDay,
           ],
         ])
@@ -757,7 +764,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             await snapshot(),
             ([, , plantId]) => plantId === personal
           ).map(([, userId, , at]) => [userId, at])
-        ).toEqual([[sam, DateTime.formatIso(sendTime(dueDay, 'UTC', 9))]])
+        ).toEqual([
+          [sam, DateTime.formatIso(sendTime(dueDay, ZoneName.make('UTC'), 9))],
+        ])
       })
     })
   }

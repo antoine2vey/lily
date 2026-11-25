@@ -1,4 +1,4 @@
-import { Array, DateTime, Effect, Option, pipe, Record } from 'effect'
+import { Array, DateTime, Effect, Option, pipe, Record, Schema } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CareDay, CareDays } from '../domains/care/care-day'
 import {
@@ -8,7 +8,8 @@ import {
   startOfTodayAsDate,
   startOfTomorrowAsDate,
   startOfWeek,
-  zoneFromName,
+  ZoneName,
+  zoneNameOrDefault,
 } from '../domains/common/date'
 import { pickNotificationTime } from '../domains/notification/overdue'
 import {
@@ -25,7 +26,9 @@ const iso = (dateTime: DateTime.DateTime | Date): string =>
     ? dateTime.toISOString()
     : DateTime.formatIso(DateTime.toUtc(dateTime))
 
-const everyHelper = (timezone: string) => ({
+const decode = Schema.decodeUnknownSync(ZoneName)
+
+const everyHelper = (timezone: ZoneName) => ({
   'CareDays.startOf': iso(CareDays.startOf(day, timezone)),
   startOfDay: iso(startOfDay(now, timezone)),
   startOfWeek: iso(startOfWeek(now, timezone)),
@@ -69,7 +72,8 @@ describe('zone names in the date helpers', () => {
 
   it.each(['GMT', 'GMT0', 'UTC', 'Etc/GMT', 'Etc/UTC', 'Eire'])(
     'computes every boundary for %s, which sits at UTC+0 in November',
-    (timezone) => {
+    (name) => {
+      const timezone = decode(name)
       expect(everyHelper(timezone)).toEqual(atUtcOffsetZero)
       expect(Option.map(startOfLocalDay(day, timezone), iso)).toEqual(
         Option.some('2026-11-16T00:00:00.000Z')
@@ -78,7 +82,7 @@ describe('zone names in the date helpers', () => {
   )
 
   it('computes every boundary for the legacy name US/Pacific', () => {
-    expect(everyHelper('US/Pacific')).toEqual({
+    expect(everyHelper(decode('US/Pacific'))).toEqual({
       'CareDays.startOf': '2026-11-16T08:00:00.000Z',
       startOfDay: '2026-11-16T08:00:00.000Z',
       startOfWeek: '2026-11-16T08:00:00.000Z',
@@ -89,10 +93,9 @@ describe('zone names in the date helpers', () => {
     })
   })
 
-  it('reports an unknown zone as None and computes UTC boundaries for it', () => {
-    expect(everyHelper('Not/A_Zone')).toEqual(atUtcOffsetZero)
-    expect(startOfLocalDay(day, 'Not/A_Zone')).toEqual(Option.none())
-    expect(zoneFromName('Not/A_Zone')).toEqual(Option.none())
+  it('rejects an unknown zone name, which reads as UTC only at a boundary', () => {
+    expect(Schema.decodeOption(ZoneName)('Not/A_Zone')).toEqual(Option.none())
+    expect(zoneNameOrDefault('Not/A_Zone')).toBe('UTC')
   })
 
   // Offsets read from `zdump -v -c 2026,2027`. Etc/GMT+N is UTC-N (POSIX sign).
@@ -104,7 +107,8 @@ describe('zone names in the date helpers', () => {
     ['Europe/Paris', '2026-03-30', '2026-03-29T22:00:00.000Z'],
     // Clocks go 00:00 -04 to 01:00 -03 on 2026-09-06, so the day starts at 01:00.
     ['America/Santiago', '2026-09-06', '2026-09-06T04:00:00.000Z'],
-  ])('starts %s day %s at %s', (timezone, dayKey, start) => {
+  ])('starts %s day %s at %s', (name, dayKey, start) => {
+    const timezone = ZoneName.make(name)
     const noon = DateTime.add(DateTime.makeUnsafe(start), { hours: 12 })
     expect(iso(CareDays.startOf(CareDay.make(dayKey), timezone))).toBe(start)
     expect(Option.map(startOfLocalDay(dayKey, timezone), iso)).toEqual(
@@ -118,13 +122,13 @@ describe('zone names in the date helpers', () => {
     const names = [...CANONICAL_TIME_ZONES, ...Record.keys(TIME_ZONE_ALIASES)]
     const mismatched = Array.filter(
       names,
-      (timezone) =>
+      (name) =>
         !pipe(
-          startOfLocalDay(day, timezone),
+          startOfLocalDay(day, decode(name)),
           Option.exists(
             (start) =>
-              iso(start) === iso(CareDays.startOf(day, timezone)) &&
-              localDayKey(start, timezone) === day
+              iso(start) === iso(CareDays.startOf(day, decode(name))) &&
+              localDayKey(start, decode(name)) === day
           )
         )
     )

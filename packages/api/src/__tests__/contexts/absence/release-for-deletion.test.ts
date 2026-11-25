@@ -1,10 +1,10 @@
 import { mockDelegation1 } from '@lily/api/__tests__/fixtures/delegations'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockUser1, mockUser2 } from '@lily/api/__tests__/fixtures/users'
 import { createInMemoryAbsence } from '@lily/api/__tests__/mocks/absence'
 import { transactInMemory } from '@lily/api/__tests__/mocks/transaction'
 import { Absence } from '@lily/api/contexts/absence'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -13,7 +13,7 @@ const DAY = 86_400_000
 
 const owner = mockUser1
 const caretaker = mockUser2
-const stranger: User = {
+const stranger: UserFixture = {
   ...mockUser1,
   id: 'stranger',
   email: 'stranger@x.test',
@@ -42,7 +42,7 @@ const released = async (
   userId: string,
   given: {
     readonly delegations?: ReadonlyArray<DelegationRow>
-    readonly users?: ReadonlyArray<User>
+    readonly users?: ReadonlyArray<UserFixture>
   }
 ) => {
   const notifications: Notification[] = []
@@ -157,7 +157,7 @@ describe('releasing what an account that is being deleted holds', () => {
   )
 
   it('ends the running vacation of an account already marked for deletion, says so, and moves no due day', async () => {
-    const leaving: User = {
+    const leaving: UserFixture = {
       ...caretaker,
       ...awayNow,
       status: 'pending_deletion',
@@ -177,7 +177,7 @@ describe('releasing what an account that is being deleted holds', () => {
   })
 
   it('clears a vacation that had not started and says nothing', async () => {
-    const leaving: User = { ...caretaker, ...awayLater }
+    const leaving: UserFixture = { ...caretaker, ...awayLater }
 
     const after = await released(leaving.id, { users: [owner, leaving] })
 

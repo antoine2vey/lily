@@ -4,6 +4,7 @@ import type {
   CanopyMemberRole,
   LanguageCode,
   PlantOwner,
+  ZoneName,
 } from '@lily/shared'
 import { Array, DateTime, Option, Order, pipe } from 'effect'
 
@@ -16,7 +17,7 @@ export interface Account {
   readonly userId: string
   readonly name: string | null
   readonly language: LanguageCode
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
   readonly location: Option.Option<Location>
   readonly reachable: boolean
 }
@@ -55,7 +56,7 @@ export const takesASlot = (plant: HeldPlant): boolean => plant.living
 export interface CanopyState {
   readonly id: CanopyId
   readonly name: string
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly members: ReadonlyArray<Member>
   readonly link: Option.Option<Link>
 }

@@ -65,6 +65,7 @@ import { withPermittedPlant } from '@lily/api/services/plants/helpers/with-plant
 import { uploadAvatar } from '@lily/api/services/user/endpoints/upload-avatar'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { failureOf } from '@lily/shared/testing'
 import { eq, sql } from 'drizzle-orm'
@@ -169,7 +170,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           image: Option.getOrUndefined(
             Option.map(Option.fromUndefinedOr(image), mintStoredRef)
           ),
@@ -275,6 +276,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       Effect.flatMap(Effect.context<ToolContext>(), (runtime) =>
         Effect.promise(async () => {
           await createDiagnosisTool({
+            timezone: ZoneName.make('UTC'),
             runtime,
             userId: alex,
             permit: chatPermit(plantId, alex),

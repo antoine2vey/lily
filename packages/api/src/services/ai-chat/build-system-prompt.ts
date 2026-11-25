@@ -3,6 +3,7 @@ import {
   formatDaysUntilHuman,
   formatIsoDate,
   isPetSafe,
+  type ZoneName,
 } from '@lily/shared'
 import type { CarePlan, CarePlanStep } from '@lily/shared/care-plan'
 import { Array, DateTime, Filter, Option, Order, pipe } from 'effect'
@@ -16,7 +17,7 @@ const mostRecentFirst: Order.Order<{ readonly completedAt: Date }> = Order.flip(
   )
 )
 
-const formatStepLine = (step: CarePlanStep, timezone: string): string => {
+const formatStepLine = (step: CarePlanStep, timezone: ZoneName): string => {
   const localDay = (date: Date) =>
     CareDays.of(DateTime.fromDateUnsafe(date), timezone)
   const meta = pipe(
@@ -48,7 +49,7 @@ const formatStepLine = (step: CarePlanStep, timezone: string): string => {
  */
 export const formatCarePlansText = (
   plans: ReadonlyArray<CarePlan>,
-  timezone: string
+  timezone: ZoneName
 ): string => {
   const active = Array.filter(
     plans,
@@ -142,7 +143,7 @@ export interface BuildSystemPromptParams {
   readonly careHistoryText: string
   readonly carePlansText?: string | undefined
   /** The zone the plant's care days are counted in. */
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly now: DateTime.Utc
 }
 
@@ -164,7 +165,7 @@ const formatScheduleBlock = (
   lastLabel: string,
   nextLabel: string,
   schedule: ScheduleEntry | undefined,
-  timezone: string,
+  timezone: ZoneName,
   now: DateTime.Utc
 ): string => {
   const opt = Option.fromNullishOr(schedule)

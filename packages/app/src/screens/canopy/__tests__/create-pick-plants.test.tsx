@@ -1,4 +1,5 @@
 import type { Canopy, CanopyId } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   fireEvent,
@@ -15,7 +16,7 @@ import type { ApiFailure } from '@/utils/client'
 const mockCreated: Canopy = {
   id: 'canopy-1' as CanopyId,
   name: 'Our Flat',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'owner',

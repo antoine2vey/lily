@@ -25,6 +25,7 @@ import { PushService } from '@lily/api/services/push/service'
 import type { PushMessage } from '@lily/api/services/push/types'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Effect, Layer, References } from 'effect'
@@ -82,7 +83,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `${stamp}@example.com`,
           name: stamp,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           language: 'en',
         })
         .returning()

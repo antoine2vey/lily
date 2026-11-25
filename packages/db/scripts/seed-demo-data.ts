@@ -23,6 +23,7 @@ import {
   userFollows,
   users,
 } from '@lily/db/schema'
+import type { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { Array as A, Console, Duration, Effect, Option } from 'effect'
@@ -534,7 +535,7 @@ const LILY_PLANTS: DemoPlantData[] = [
 const seedDemoData = Effect.gen(function* () {
   const db = yield* PgDrizzle.PgDrizzle
   const insertCareLogs = (
-    owner: { readonly id: string; readonly timezone: string | null },
+    owner: { readonly id: string; readonly timezone: ZoneName | null },
     logs: ReadonlyArray<
       Omit<
         typeof careLogs.$inferInsert,

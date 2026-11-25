@@ -25,10 +25,12 @@ import {
   vacationColumnsOf,
 } from '@lily/api/contexts/absence/store'
 import {
+  DEFAULT_ZONE,
   type UserStatus,
   VACATION_MAX_DURATION_DAYS,
   VacationDateError,
   VacationNotFoundError,
+  ZoneName,
 } from '@lily/shared'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Array, DateTime, Option, Result, Struct } from 'effect'
@@ -44,7 +46,10 @@ const over: Away = { start: daysFromNow(-9), end: daysFromNow(-2) }
 const storedAs = (vacation: Vacation): StoredVacation =>
   storedVacationOf(vacationColumnsOf(vacation))
 
-const holding = (vacation: Vacation, timezone = 'UTC'): Held => ({
+const holding = (
+  vacation: Vacation,
+  timezone: ZoneName = DEFAULT_ZONE
+): Held => ({
   userId: 'alex',
   timezone,
   vacation,
@@ -518,7 +523,7 @@ describe('vacationOf', () => {
     }
     const held: Held = {
       userId: 'alex',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       stored: legacy,
       vacation: vacationOf(legacy, now),
     }
@@ -591,14 +596,16 @@ describe('daysAway', () => {
       0,
     ],
   ] as const)('counts %s', (_what, start, endedAt, timezone, days) => {
-    expect(daysAway(away(start), at(endedAt), timezone)).toBe(days)
+    expect(daysAway(away(start), at(endedAt), ZoneName.make(timezone))).toBe(
+      days
+    )
   })
 })
 
 describe('the account a vacation command holds', () => {
   const account = {
     id: 'alex',
-    timezone: 'Europe/Paris',
+    timezone: ZoneName.make('Europe/Paris'),
     ...vacationColumnsOf(Vacation.Scheduled(ahead)),
   }
 
@@ -616,7 +623,7 @@ describe('the account a vacation command holds', () => {
     expect(heldVacationOf({ ...account, status: 'active' }, now)).toEqual(
       Option.some({
         userId: 'alex',
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         stored: storedAs(Vacation.Scheduled(ahead)),
         vacation: Vacation.Scheduled(ahead),
       })

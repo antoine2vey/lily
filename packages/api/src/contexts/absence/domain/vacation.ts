@@ -7,6 +7,7 @@ import {
   startOfDay,
   VACATION_MAX_DURATION_DAYS,
   type VacationStatus,
+  type ZoneName,
 } from '@lily/shared'
 import {
   Array,
@@ -174,7 +175,7 @@ export interface After {
 
 export interface Held {
   readonly userId: string
-  readonly timezone: string
+  readonly timezone: ZoneName
   readonly vacation: Vacation
   readonly stored: StoredVacation
 }
@@ -184,7 +185,7 @@ const DAY_MS = Duration.toMillis(Duration.days(1))
 export const daysAway = (
   away: Away,
   endedAt: DateTime.Utc,
-  timezone: string
+  timezone: ZoneName
 ): number =>
   Math.max(
     0,

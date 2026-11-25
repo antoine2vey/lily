@@ -24,6 +24,7 @@ import {
   type LanguageCode,
   startOfWeek,
   type VacationStatus,
+  type ZoneName,
 } from '@lily/shared'
 import { and, count, desc, eq, gte, inArray, or, sql } from 'drizzle-orm'
 import {
@@ -42,7 +43,7 @@ export interface UserWithSettings {
   readonly id: string
   readonly tips: boolean
   readonly personalizedTips: boolean
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
   readonly doNotDisturb: boolean
   readonly doNotDisturbStart: string | null
   readonly doNotDisturbEnd: string | null
@@ -76,7 +77,7 @@ export interface PlantAnniversary {
 
 export interface TrialingUser {
   readonly id: string
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
   readonly doNotDisturb: boolean
   readonly doNotDisturbStart: string | null
   readonly doNotDisturbEnd: string | null
@@ -129,7 +130,7 @@ export interface IEngagementRepository {
   ) => Effect.Effect<number, SqlError>
   readonly getCareLogsCountForWeek: (
     userId: string,
-    timezone: string
+    timezone: ZoneName
   ) => Effect.Effect<number, SqlError>
 }
 
@@ -421,7 +422,7 @@ export const EngagementRepositoryLive = Layer.effect(
 
       getCareLogsCountForWeek: Effect.fn(
         'EngagementRepository.getCareLogsCountForWeek'
-      )(function* (userId: string, timezone: string) {
+      )(function* (userId: string, timezone: ZoneName) {
         const monday = startOfWeek(yield* DateTime.now, timezone)
         const result = yield* db
           .select({ value: count() })

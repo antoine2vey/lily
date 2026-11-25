@@ -2,6 +2,7 @@ import {
   calculateScheduledAt,
   recalculateNotificationSchedules,
 } from '@lily/api/services/notifications/timezone-scheduler'
+import { ZoneName } from '@lily/shared'
 import { Effect } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -17,7 +18,7 @@ describe('calculateScheduledAt', () => {
     const baseDate = createFutureDate(7, 12)
 
     const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, null, null)
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), null)
     )
 
     // Should be scheduled at 9 AM UTC
@@ -31,7 +32,7 @@ describe('calculateScheduledAt', () => {
     const baseDate = createFutureDate(7, 12)
 
     const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'America/New_York', '09:00')
+      calculateScheduledAt(baseDate, ZoneName.make('America/New_York'), '09:00')
     )
 
     // 9 AM in New York is 14:00 UTC (during standard time)
@@ -44,7 +45,7 @@ describe('calculateScheduledAt', () => {
     const baseDate = createFutureDate(7, 20)
 
     const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'UTC', '18:00')
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), '18:00')
     )
 
     // Should be scheduled at 6 PM UTC
@@ -52,23 +53,11 @@ describe('calculateScheduledAt', () => {
     expect(result.getUTCMinutes()).toBe(0)
   })
 
-  it('should fall back to UTC for invalid timezone', async () => {
-    const baseDate = createFutureDate(7, 12)
-
-    const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'Invalid/Timezone', '09:00')
-    )
-
-    // Should fall back to UTC and schedule at 9 AM UTC
-    expect(result.getUTCHours()).toBe(9)
-    expect(result.getUTCMinutes()).toBe(0)
-  })
-
   it('should fall back to 09:00 for invalid time format', async () => {
     const baseDate = createFutureDate(7, 12)
 
     const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'UTC', 'invalid-time')
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), 'invalid-time')
     )
 
     // Should fall back to 9 AM
@@ -82,7 +71,7 @@ describe('calculateScheduledAt', () => {
     const baseDate = createFutureDate(7, 8) // 8 AM UTC
 
     const result = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'UTC', '09:00')
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), '09:00')
     )
 
     // Should be scheduled at 9 AM UTC on the same day
@@ -95,13 +84,13 @@ describe('calculateScheduledAt', () => {
     const baseDate = createFutureDate(7, 12)
 
     const morningResult = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'UTC', '07:30')
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), '07:30')
     )
     expect(morningResult.getUTCHours()).toBe(7)
     expect(morningResult.getUTCMinutes()).toBe(30)
 
     const eveningResult = await Effect.runPromise(
-      calculateScheduledAt(baseDate, 'UTC', '20:00')
+      calculateScheduledAt(baseDate, ZoneName.make('UTC'), '20:00')
     )
     expect(eveningResult.getUTCHours()).toBe(20)
     expect(eveningResult.getUTCMinutes()).toBe(0)
@@ -122,7 +111,11 @@ describe('recalculateNotificationSchedules', () => {
     ]
 
     const result = await Effect.runPromise(
-      recalculateNotificationSchedules(notifications, 'UTC', '09:00')
+      recalculateNotificationSchedules(
+        notifications,
+        ZoneName.make('UTC'),
+        '09:00'
+      )
     )
 
     expect(result).toHaveLength(2)
@@ -134,7 +127,7 @@ describe('recalculateNotificationSchedules', () => {
 
   it('should handle empty notification array', async () => {
     const result = await Effect.runPromise(
-      recalculateNotificationSchedules([], 'UTC', '09:00')
+      recalculateNotificationSchedules([], ZoneName.make('UTC'), '09:00')
     )
 
     expect(result).toHaveLength(0)
@@ -151,7 +144,7 @@ describe('recalculateNotificationSchedules', () => {
     const result = await Effect.runPromise(
       recalculateNotificationSchedules(
         notifications,
-        'America/New_York',
+        ZoneName.make('America/New_York'),
         '08:00'
       )
     )

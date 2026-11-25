@@ -7,7 +7,7 @@ import {
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { careLogs, plants, users } from '@lily/db/schema'
 import type { CareType } from '@lily/shared'
-import { CareDay, paginate, startOfDay } from '@lily/shared'
+import { CareDay, paginate, startOfDay, type ZoneName } from '@lily/shared'
 import type {
   CareLog,
   CareLogHistoryItem,
@@ -56,12 +56,12 @@ export interface ICareLogRepository {
   ) => Effect.Effect<RecentActivitiesListResponse, SqlError>
   readonly countTodayByUser: (
     userId: string,
-    timezone: string,
+    timezone: ZoneName,
     canopyId: string | null
   ) => Effect.Effect<number, SqlError>
   readonly countTodayPerformedByUser: (
     userId: string,
-    timezone: string
+    timezone: ZoneName
   ) => Effect.Effect<number, SqlError>
   readonly countByUser: (userId: string) => Effect.Effect<number, SqlError>
 }
@@ -182,7 +182,11 @@ export const CareLogRepositoryLive = Layer.effect(
       ),
 
       countTodayByUser: Effect.fn('CareLogRepository.countTodayByUser')(
-        function* (userId: string, timezone: string, canopyId: string | null) {
+        function* (
+          userId: string,
+          timezone: ZoneName,
+          canopyId: string | null
+        ) {
           const today = startOfDay(yield* DateTime.now, timezone)
           const result = yield* db
             .select({ value: count() })
@@ -201,7 +205,7 @@ export const CareLogRepositoryLive = Layer.effect(
 
       countTodayPerformedByUser: Effect.fn(
         'CareLogRepository.countTodayPerformedByUser'
-      )(function* (userId: string, timezone: string) {
+      )(function* (userId: string, timezone: ZoneName) {
         const today = startOfDay(yield* DateTime.now, timezone)
         const result = yield* db
           .select({ value: count() })

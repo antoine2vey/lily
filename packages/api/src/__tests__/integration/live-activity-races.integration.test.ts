@@ -30,6 +30,7 @@ import {
 } from '@lily/api/services/push/types'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -126,7 +127,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `la-race-${stamp}@example.com`,
           name: `la-race-${stamp}`,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!user) throw new Error('user insert returned nothing')
@@ -539,7 +540,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `la-caretaker-${Date.now()}@example.com`,
           name: `la-caretaker-${Date.now()}`,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!caretaker) throw new Error('caretaker insert returned nothing')

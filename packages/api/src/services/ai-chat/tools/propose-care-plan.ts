@@ -1,6 +1,6 @@
 import { CarePlans } from '@lily/api/contexts/care'
 import type { PlantPermit } from '@lily/api/kernel/permit'
-import { CARE_PLAN_MAX_STEPS } from '@lily/shared'
+import { CARE_PLAN_MAX_STEPS, type ZoneName } from '@lily/shared'
 import { type Tool, tool } from 'ai'
 import { Array, Effect, Option, pipe } from 'effect'
 import { z } from 'zod'
@@ -8,7 +8,10 @@ import { z } from 'zod'
 import { carePlanStepSchema, toProposedStep } from './care-plan-step-schema'
 import type { ToolDeps } from './index'
 
-type PlantToolDeps = ToolDeps & { permit: PlantPermit<'chat'> }
+type PlantToolDeps = ToolDeps & {
+  permit: PlantPermit<'chat'>
+  timezone: ZoneName
+}
 
 export const proposeCarePlanTool = (deps: PlantToolDeps): Tool =>
   tool({
@@ -31,10 +34,7 @@ export const proposeCarePlanTool = (deps: PlantToolDeps): Tool =>
       Effect.runPromiseWith(deps.runtime)(
         Effect.gen(function* () {
           const carePlans = yield* CarePlans
-          const timezone = pipe(
-            Option.fromNullishOr(deps.timezone),
-            Option.getOrElse(() => 'UTC')
-          )
+          const { timezone } = deps
 
           const { planId } = yield* carePlans.propose({
             permit: deps.permit,

@@ -3,6 +3,7 @@ import { CanopyRef } from '../canopy/schema'
 import { CareDay } from '../care/care-day'
 import { CareStatus } from '../care/status'
 import { CareType } from '../care/types'
+import { StoredZoneName } from '../common/date/zone-name'
 import { PaginatedResponse } from '../common/pagination'
 import { RoomRef } from '../room/schema'
 
@@ -129,7 +130,7 @@ const plantFields = {
   createdBy: Schema.optionalKey(Schema.NullOr(PlantCreator)),
   schedules: Schema.Array(PlantCareScheduleWithLastCareDay),
   /** Timezone of the plant's care context, and its current care day. */
-  careTimezone: Schema.String,
+  careTimezone: StoredZoneName,
   today: CareDay,
 }
 

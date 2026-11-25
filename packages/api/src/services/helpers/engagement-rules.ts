@@ -9,6 +9,7 @@ import {
   daysAgoAsDate,
   type LanguageCode,
   pickUpcomingNotificationTime,
+  type ZoneName,
 } from '@lily/shared'
 import { Array, Data, Effect, Option, pipe, Random, Ref } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -39,7 +40,7 @@ export type Nudge = {
 
 export interface Recipient {
   readonly id: string
-  readonly timezone: string | null
+  readonly timezone: ZoneName | null
   readonly doNotDisturb: boolean
   readonly doNotDisturbStart: string | null
   readonly doNotDisturbEnd: string | null
@@ -57,7 +58,7 @@ export interface EngagementRule<U extends Recipient, R> {
    */
   readonly decide: (
     user: U,
-    timezone: string
+    timezone: ZoneName
   ) => Effect.Effect<ReadonlyArray<Nudge>, SkipUserError | SqlError, R>
 }
 

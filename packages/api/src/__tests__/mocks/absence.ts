@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createStubCare } from '@lily/api/__tests__/mocks/care'
 import {
   createMockDelegationRepository,
@@ -43,7 +44,6 @@ import {
 import { careDelegations, users } from '@lily/db/schema'
 import {
   CARE_TYPES,
-  type User,
   VACATION_MUTED_TOPICS,
   type VacationFields,
 } from '@lily/shared'
@@ -60,8 +60,10 @@ import {
   pipe,
 } from 'effect'
 
-type MockAccount = Pick<User, 'id' | 'name' | 'image'> &
-  Partial<Pick<User, 'language' | 'status' | 'timezone' | keyof VacationFields>>
+type MockAccount = Pick<UserFixture, 'id' | 'name' | 'image'> &
+  Partial<
+    Pick<UserFixture, 'language' | 'status' | 'timezone' | keyof VacationFields>
+  >
 
 interface MockRequestablePlant extends OwnerColumns {
   readonly id: string

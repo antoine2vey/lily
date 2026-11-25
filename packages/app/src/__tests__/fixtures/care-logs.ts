@@ -1,4 +1,4 @@
-import { CareDay, CareDays } from '@lily/shared'
+import { CareDay, CareDays, ZoneName } from '@lily/shared'
 import type { CareLog } from '@lily/shared/care-log'
 import { DateTime } from 'effect'
 
@@ -47,7 +47,7 @@ export const createTestCareLog = (
     plantId: 'plant-1',
     type: 'watering',
     date,
-    careDay: CareDays.of(DateTime.makeUnsafe(date), 'UTC'),
+    careDay: CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC')),
     notes: undefined,
     photoUrl: undefined,
     createdAt: new Date(),

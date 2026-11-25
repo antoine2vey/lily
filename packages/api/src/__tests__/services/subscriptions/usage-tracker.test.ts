@@ -19,7 +19,7 @@ import {
   UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import type { subscriptionUsage } from '@lily/db/schema'
-import { LimitExceededError, type UsageField } from '@lily/shared'
+import { LimitExceededError, type UsageField, ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
@@ -161,7 +161,10 @@ describe('UsageTracker', () => {
     it('does not nudge again later in the same local day, past UTC midnight', async () => {
       vi.useFakeTimers({ toFake: ['Date'] })
       vi.setSystemTime(new Date('2026-06-16T02:00:00.000Z'))
-      const user = { ...mockUser1, timezone: 'America/Los_Angeles' }
+      const user = {
+        ...mockUser1,
+        timezone: ZoneName.make('America/Los_Angeles'),
+      }
       const notifications: Notification[] = [
         createTestNotification({
           userId: user.id,

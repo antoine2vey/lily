@@ -19,7 +19,13 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import { Dirty, replan } from '@lily/api/contexts/reminders'
 import type { CareReminderType } from '@lily/api/contexts/reminders/domain/plan'
 import type { DelegationRow } from '@lily/api/repositories/delegation.repository'
-import { CareDays, type CareType, type PlantOwner } from '@lily/shared'
+import {
+  CareDays,
+  type CareType,
+  DEFAULT_ZONE,
+  type PlantOwner,
+  ZoneName,
+} from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import {
   Array,
@@ -45,7 +51,7 @@ const replanPlant = (
     plant: { id: string; owner: PlantOwner; remindersEnabled: boolean }
     type: CareReminderType
     scheduledDate: Date
-    careTimezone?: string
+    careTimezone?: ZoneName
   },
   notifications: ReturnType<typeof notificationMocks>
 ) => {
@@ -73,7 +79,7 @@ const replanPlant = (
             createMockPlantRepository({ plants }),
             createMockCareScheduleRepository({
               plants,
-              timezones: { [ownerId]: params.careTimezone ?? 'UTC' },
+              timezones: { [ownerId]: params.careTimezone ?? DEFAULT_ZONE },
               schedules: [
                 createTestSchedule({
                   plantId: params.plant.id,
@@ -81,7 +87,7 @@ const replanPlant = (
                   nextCareAt: params.scheduledDate,
                   dueDay: CareDays.of(
                     DateTime.makeUnsafe(params.scheduledDate),
-                    params.careTimezone ?? 'UTC'
+                    params.careTimezone ?? DEFAULT_ZONE
                   ),
                 }),
               ],
@@ -141,7 +147,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
       })
 
@@ -161,7 +167,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
@@ -183,7 +189,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pending = await runAndGetPendingNotifications(
@@ -202,7 +208,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pending = await runAndGetPendingNotifications(
@@ -223,7 +229,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: false,
         doNotDisturbStart: '22:00',
@@ -249,7 +255,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
@@ -274,7 +280,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
@@ -299,7 +305,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: true,
         doNotDisturbStart: null,
@@ -333,7 +339,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
@@ -389,7 +395,7 @@ describe('replanning one plant', () => {
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
         doNotDisturbEnd: '07:00',
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const pending = await runAndGetPendingNotifications(
@@ -409,7 +415,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
@@ -433,7 +439,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: false,
       })
@@ -476,7 +482,7 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
@@ -498,7 +504,7 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
@@ -506,7 +512,7 @@ describe('replanning one plant', () => {
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '10:00',
         doNotDisturb: false,
       })
@@ -551,14 +557,14 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'Europe/Paris',
+        timezone: ZoneName.make('Europe/Paris'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: true,
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
         preferredNotificationTime: '19:00',
         doNotDisturb: false,
       })
@@ -570,7 +576,7 @@ describe('replanning one plant', () => {
           plant: personalPlant(owner.id, true),
           type: 'watering_reminder',
           scheduledDate: halfPastMidnightNov4Paris,
-          careTimezone: 'Europe/Paris',
+          careTimezone: ZoneName.make('Europe/Paris'),
         },
         caretaker,
         {
@@ -591,7 +597,7 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
@@ -599,7 +605,7 @@ describe('replanning one plant', () => {
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '10:00',
         doNotDisturb: false,
       })
@@ -643,7 +649,7 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         doNotDisturb: false,
       })
@@ -651,7 +657,7 @@ describe('replanning one plant', () => {
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '23:00',
         doNotDisturb: true,
         doNotDisturbStart: '22:00',
@@ -699,14 +705,14 @@ describe('replanning one plant', () => {
       const owner = createTestUser({
         id: 'owner-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
       })
 
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: false,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
 
       const delegation = createActiveDelegation(owner.id, caretaker.id)
@@ -769,7 +775,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         vacationStatus: 'active',
         vacationStart: createFutureDate(-3),
         vacationEnd: createFutureDate(4),
@@ -791,7 +797,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         vacationStatus: 'scheduled',
         vacationStart: createFutureDate(-1),
         vacationEnd: createFutureDate(6),
@@ -813,7 +819,7 @@ describe('replanning one plant', () => {
       const user = createTestUser({
         id: 'user-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         vacationStatus: 'scheduled',
         vacationStart: createFutureDate(10),
         vacationEnd: createFutureDate(20),
@@ -842,7 +848,7 @@ describe('replanning one plant', () => {
       const caretaker = createTestUser({
         id: 'caretaker-1',
         careReminders: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       const delegation = createActiveDelegation(owner.id, caretaker.id)
 
@@ -938,14 +944,14 @@ describe('replanning one plant', () => {
     ]
     const alex = createTestUser({
       id: 'alex',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       preferredNotificationTime: '08:00',
       careReminders: true,
       doNotDisturb: false,
     })
     const lily = createTestUser({
       id: 'lily',
-      timezone: 'UTC',
+      timezone: ZoneName.make('UTC'),
       preferredNotificationTime: '19:00',
       careReminders: true,
       doNotDisturb: false,
@@ -957,7 +963,7 @@ describe('replanning one plant', () => {
         mutes?: { userId: string; plantId: string }[]
         existing?: Notification[]
         occasionDays?: Record<string, string>
-        canopyTimezone?: string
+        canopyTimezone?: ZoneName
         scheduledDate?: Date
       } = {}
     ) => {
@@ -968,7 +974,7 @@ describe('replanning one plant', () => {
             plant: canopyPlant,
             type: 'watering_reminder',
             scheduledDate: options.scheduledDate ?? createFutureDate(7),
-            careTimezone: options.canopyTimezone ?? 'UTC',
+            careTimezone: options.canopyTimezone ?? DEFAULT_ZONE,
           },
           notificationMocks(rows, {
             occasionDays: options.occasionDays ?? {},
@@ -983,7 +989,7 @@ describe('replanning one plant', () => {
                   canopies: [
                     createTestCanopyRow({
                       id: mockCanopyId,
-                      timezone: options.canopyTimezone ?? 'UTC',
+                      timezone: options.canopyTimezone ?? DEFAULT_ZONE,
                     }),
                   ],
                   members,
@@ -1009,14 +1015,14 @@ describe('replanning one plant', () => {
     it('reminds a member west of the Canopy on the same calendar day, not the day before', async () => {
       const newYorker = createTestUser({
         id: 'lily',
-        timezone: 'America/New_York',
+        timezone: ZoneName.make('America/New_York'),
         preferredNotificationTime: '09:00',
         careReminders: true,
         doNotDisturb: false,
       })
       const parisMidnightJul15 = new Date('2099-07-14T22:00:00.000Z')
       const pending = await runCanopy([alex, newYorker], {
-        canopyTimezone: 'Europe/Paris',
+        canopyTimezone: ZoneName.make('Europe/Paris'),
         scheduledDate: parisMidnightJul15,
       })
       const lilyRow = Array.findFirst(pending, (n) => n.userId === 'lily')
@@ -1037,7 +1043,7 @@ describe('replanning one plant', () => {
     it('skips a member whose care reminders are off and one on vacation, and keeps the rest', async () => {
       const off = createTestUser({
         id: 'lily',
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         careReminders: false,
       })
       const pending = await runCanopy([alex, off])

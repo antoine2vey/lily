@@ -27,6 +27,7 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import type { LiveActivityPushMessage } from '@lily/api/services/push/types'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -132,7 +133,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!user) throw new Error('Failed to create test user')

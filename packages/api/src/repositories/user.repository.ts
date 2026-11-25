@@ -4,9 +4,9 @@ import { users } from '@lily/db/schema'
 import {
   type LanguageCode,
   nowAsDate,
-  type TimeZone,
   type UserRole,
   type UserStatus,
+  type ZoneName,
 } from '@lily/shared'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import {
@@ -27,7 +27,7 @@ export interface CreateUserData {
   name?: string
   email: string
   emailVerified?: boolean
-  timezone?: TimeZone
+  timezone?: ZoneName
   language?: LanguageCode
   firstName?: string | null
   lastName?: string | null
@@ -51,7 +51,7 @@ export interface UpdateUserData {
   role?: UserRole
   status?: UserStatus
   language?: LanguageCode
-  timezone?: TimeZone | null
+  timezone?: ZoneName | null
   preferredNotificationTime?: string | null
   weatherEnabled?: boolean
   latitude?: number | null

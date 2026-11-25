@@ -1,16 +1,17 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import {
   type FindUsersFilters,
   type IUserRepository,
   UserRepository,
 } from '@lily/api/repositories/user.repository'
 import type { users as usersTable } from '@lily/db/schema'
-import type { User } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 
 type UserRow = typeof usersTable.$inferSelect
 
-export const asUserRow = (user: User): UserRow => ({
+export const asUserRow = (user: UserFixture): UserRow => ({
   ...user,
   image: Option.getOrNull(
     Option.map(Option.fromNullishOr(user.image), mintStoredRef)
@@ -18,7 +19,7 @@ export const asUserRow = (user: User): UserRow => ({
 })
 
 export const createMockUserRepository = (
-  users: User[]
+  users: UserFixture[]
 ): Layer.Layer<UserRepository> => {
   const rows = () => Array.map(users, asUserRow)
   const repo: IUserRepository = {
@@ -79,7 +80,7 @@ export const createMockUserRepository = (
         status: 'active',
         createdAt: new Date(),
         updatedAt: new Date(),
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
         preferredNotificationTime: '09:00',
         publicProfile: true,
         shareGrowthData: true,

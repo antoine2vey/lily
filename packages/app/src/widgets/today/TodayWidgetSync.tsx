@@ -1,4 +1,4 @@
-import type { CareTasksResponse } from '@lily/shared'
+import { type CareTasksResponse, DEFAULT_ZONE } from '@lily/shared'
 import * as Sentry from '@sentry/react-native'
 import { Effect, Match, Option, pipe } from 'effect'
 import { useEffect, useRef, useState } from 'react'
@@ -8,6 +8,7 @@ import { useLocalizationContext } from '@/contexts/LocalizationContext'
 import { CARE_TASKS_PARAMS } from '@/hooks/useCareTasks'
 import i18n from '@/i18n'
 import { useEffectQuery } from '@/utils/client'
+import { zoneOnThisDevice } from '@/utils/zone'
 import {
   buildTodayWidgetSnapshot,
   makeTodayWidgetCopy,
@@ -51,7 +52,8 @@ export const decideTodayWidgetInput = ({
           tasks: response,
           timezone: pipe(
             Option.fromNullishOr(user.timezone),
-            Option.getOrElse(() => 'UTC')
+            Option.getOrElse(() => DEFAULT_ZONE),
+            zoneOnThisDevice
           ),
         })
       )

@@ -3,7 +3,7 @@ import {
   formatTime,
   makeTimePickerDate,
   parseApiDate,
-  type TimeZone,
+  type ZoneName,
 } from '@lily/shared'
 import { Array, Match, Option, pipe, String } from 'effect'
 import { router } from 'expo-router'
@@ -113,7 +113,7 @@ export function NotificationSettingsScreen() {
   )
 
   const handleTimezoneChange = useCallback(
-    (newTimezone: TimeZone) => {
+    (newTimezone: ZoneName) => {
       setShowTimezonePicker(false)
       saveUserSettings({ timezone: newTimezone })
     },

@@ -19,6 +19,7 @@ import {
   nowAsDate,
   startOfLocalDay,
   startOfTodayAsDate,
+  utcDayKey,
 } from '@lily/shared'
 import { Array, Config, DateTime, Effect, Option, Order, pipe } from 'effect'
 import { generateDailyTip } from './generator'
@@ -50,7 +51,7 @@ const dailyTip = (tip: DailyTip): EngagementRule<UserWithSettings, never> => ({
 /** Today's tip, generated on the first run of the UTC day. */
 const tipOfToday = Effect.gen(function* () {
   const tipRepo = yield* DailyTipRepository
-  const today = localDayKey(DateTime.nowUnsafe(), 'UTC')
+  const today = utcDayKey(DateTime.nowUnsafe())
 
   const existing = Option.fromNullishOr(yield* tipRepo.findByDate(today))
   if (Option.isSome(existing)) return existing

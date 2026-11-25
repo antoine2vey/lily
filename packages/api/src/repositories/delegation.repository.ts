@@ -23,6 +23,7 @@ import {
   type CareType,
   type DelegationStatus,
   type PlantCareSchedule,
+  type ZoneName,
 } from '@lily/shared'
 import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm'
 import {
@@ -187,7 +188,7 @@ function groupWithSchedules<
 type UnseenCare = {
   schedules: StoredSchedule[]
   health: PlantCondition
-  careTimezone: string
+  careTimezone: ZoneName
 }
 
 const withCareSeen = <T extends UnseenCare>(
@@ -209,7 +210,7 @@ const groupPlantRows = (
     name: string
     imageUrl: string | null
     health: PlantCondition
-    careTimezone: string
+    careTimezone: ZoneName
   })[],
   now: DateTime.DateTime
 ): DelegationPlantRow[] =>

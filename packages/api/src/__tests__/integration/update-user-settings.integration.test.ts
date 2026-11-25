@@ -24,7 +24,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { asc, eq, sql } from 'drizzle-orm'
@@ -193,7 +193,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })
@@ -243,7 +243,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const request = { _tag: 'Recipient', userId }
 
       const exit = await update(
-        { timezone: TimeZone.make('America/New_York') },
+        { timezone: ZoneName.make('America/New_York') },
         UnplannableLive
       )
 
@@ -320,7 +320,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         })
         .where(eq(schema.users.id, userId))
 
-      const exit = await update({ timezone: TimeZone.make('America/New_York') })
+      const exit = await update({ timezone: ZoneName.make('America/New_York') })
 
       expect(Exit.isSuccess(exit)).toBe(true)
       const rows = await pending()

@@ -7,7 +7,7 @@ import { LifeState } from '@lily/api/contexts/care/domain/care-plant'
 import { CarePlanRepository } from '@lily/api/repositories/care-plan.repository'
 import { resolveDueDate } from '@lily/api/services/ai-chat/tools/care-plan-step-schema'
 import { proposeCarePlanTool } from '@lily/api/services/ai-chat/tools/propose-care-plan'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import type { ToolExecutionOptions } from 'ai'
 import { Array, DateTime, Effect, Layer, ManagedRuntime, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -48,7 +48,7 @@ describe('proposeCarePlanTool', () => {
       userId: 'user-1',
       permit: chatPermit('plant-1'),
       plantName: 'Monstera',
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
     })
 
     const result = (await planTool.execute!(overwatered, stubToolOptions)) as {
@@ -84,6 +84,7 @@ describe('proposeCarePlanTool', () => {
       createTestCarePlant('plant-1', { life: LifeState.Dead() })
     )
     const planTool = proposeCarePlanTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -107,6 +108,7 @@ describe('proposeCarePlanTool', () => {
   it('rejects more than the maximum number of steps at the schema level', async () => {
     const managedRuntime = runtimeOver()
     const planTool = proposeCarePlanTool({
+      timezone: ZoneName.make('UTC'),
       runtime: await managedRuntime.context(),
       userId: 'user-1',
       permit: chatPermit('plant-1'),
@@ -134,14 +136,14 @@ describe('proposeCarePlanTool', () => {
 describe('resolveDueDate', () => {
   it('lands on the local midnight of the target day', () => {
     const now = DateTime.makeUnsafe('2024-06-10T15:30:00Z')
-    const due = resolveDueDate(2, 'Europe/Paris', now)
+    const due = resolveDueDate(2, ZoneName.make('Europe/Paris'), now)
     // Paris is UTC+2 in June: local midnight on June 12 is 22:00 UTC on June 11.
     expect(due?.toISOString()).toBe('2024-06-11T22:00:00.000Z')
   })
 
   it.each([
     {
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
       clock: 'clocks go back on 2026-10-25',
       now: '2026-10-24T10:00:00.000Z',
       dueInDays: 2,
@@ -149,7 +151,7 @@ describe('resolveDueDate', () => {
       dueAt: '2026-10-25T23:00:00.000Z',
     },
     {
-      timezone: 'Europe/Paris',
+      timezone: ZoneName.make('Europe/Paris'),
       clock: 'clocks go forward on 2026-03-29',
       now: '2026-03-28T10:00:00.000Z',
       dueInDays: 2,
@@ -157,7 +159,7 @@ describe('resolveDueDate', () => {
       dueAt: '2026-03-29T22:00:00.000Z',
     },
     {
-      timezone: 'Australia/Sydney',
+      timezone: ZoneName.make('Australia/Sydney'),
       clock: 'clocks go back on 2026-04-05',
       now: '2026-04-04T01:00:00.000Z',
       dueInDays: 2,
@@ -165,7 +167,7 @@ describe('resolveDueDate', () => {
       dueAt: '2026-04-05T14:00:00.000Z',
     },
     {
-      timezone: 'Australia/Sydney',
+      timezone: ZoneName.make('Australia/Sydney'),
       clock: 'clocks go forward on 2026-10-04',
       now: '2026-10-03T01:00:00.000Z',
       dueInDays: 14,
@@ -173,7 +175,7 @@ describe('resolveDueDate', () => {
       dueAt: '2026-10-16T13:00:00.000Z',
     },
     {
-      timezone: 'America/Santiago',
+      timezone: ZoneName.make('America/Santiago'),
       clock: 'the due day starts at 01:00 on 2026-09-06',
       now: '2026-09-04T16:00:00.000Z',
       dueInDays: 2,
@@ -195,6 +197,6 @@ describe('resolveDueDate', () => {
   )
 
   it('returns undefined when no offset is given', () => {
-    expect(resolveDueDate(undefined, 'UTC')).toBeUndefined()
+    expect(resolveDueDate(undefined, ZoneName.make('UTC'))).toBeUndefined()
   })
 })

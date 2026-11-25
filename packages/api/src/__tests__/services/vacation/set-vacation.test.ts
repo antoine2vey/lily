@@ -1,11 +1,11 @@
 import { createTestSchedule } from '@lily/api/__tests__/fixtures/care-schedules'
 import { createTestNotification } from '@lily/api/__tests__/fixtures/notifications'
 import { createTestPlant } from '@lily/api/__tests__/fixtures/plants'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { createTestUser } from '@lily/api/__tests__/fixtures/users'
 import { createVacationWorld } from '@lily/api/__tests__/mocks/vacation-world'
 import type { AbsenceStore } from '@lily/api/contexts/absence/store'
 import { setVacation } from '@lily/api/services/vacation/endpoints/set-vacation'
-import type { User } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { Array, Effect, Order, pipe, References } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -16,7 +16,7 @@ const daysFromNow = (days: number): Date =>
 const plant = createTestPlant({ id: 'plant-1', userId: 'user-1' })
 
 const worldOf = (
-  users: User[],
+  users: UserFixture[],
   notifications: Notification[] = [],
   currentUserId = 'user-1',
   store?: (store: AbsenceStore['Service']) => AbsenceStore['Service']
@@ -33,7 +33,7 @@ const worldOf = (
   })
 
 const createLayer = (
-  users: User[],
+  users: UserFixture[],
   notifications: Notification[] = [],
   currentUserId = 'user-1'
 ) => worldOf(users, notifications, currentUserId).layer

@@ -1,5 +1,6 @@
 import { Schema } from 'effect'
 
+import { StoredZoneName } from '../common/date/zone-name'
 import { LanguageCode, UserRole, UserStatus } from '../user/schema'
 
 export const MagicLinkRequest = Schema.Struct({
@@ -45,7 +46,7 @@ export const UserProfile = Schema.Struct({
   firstName: Schema.NullOr(Schema.String),
   lastName: Schema.NullOr(Schema.String),
   username: Schema.optional(Schema.String),
-  timezone: Schema.optional(Schema.String),
+  timezone: Schema.optional(StoredZoneName),
   createdAt: Schema.DateFromString,
   updatedAt: Schema.DateFromString,
   role: UserRole,

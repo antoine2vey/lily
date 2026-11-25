@@ -2,6 +2,7 @@ import { DateTime, Schema } from 'effect'
 import { describe, expect, it } from 'vitest'
 import { CareDay, CareDays } from '../domains/care/care-day'
 import { careStatus } from '../domains/care/status'
+import { ZoneName } from '../domains/common/date/zone-name'
 
 const day = (value: string) => CareDay.make(value)
 const at = (iso: string) => DateTime.makeUnsafe(iso)
@@ -13,7 +14,7 @@ describe('CareDays.of', () => {
     ['2026-11-12T03:00:00Z', 'America/Los_Angeles', '2026-11-11'],
     ['2026-11-11T11:00:00Z', 'Pacific/Kiritimati', '2026-11-12'],
   ])('%s in %s is %s', (instant, timezone, expected) => {
-    expect(CareDays.of(at(instant), timezone)).toBe(expected)
+    expect(CareDays.of(at(instant), ZoneName.make(timezone))).toBe(expected)
   })
 })
 
@@ -24,7 +25,8 @@ describe('CareDays.startOf', () => {
     ['2026-11-11', 'America/Los_Angeles', '2026-11-11T08:00:00.000Z'],
     ['2026-03-29', 'Europe/Paris', '2026-03-28T23:00:00.000Z'],
     ['2026-03-30', 'Europe/Paris', '2026-03-29T22:00:00.000Z'],
-  ])('%s in %s starts at %s', (value, timezone, expected) => {
+  ])('%s in %s starts at %s', (value, name, expected) => {
+    const timezone = ZoneName.make(name)
     const start = CareDays.startOf(day(value), timezone)
     expect(DateTime.formatIso(start)).toBe(expected)
     expect(CareDays.of(start, timezone)).toBe(value)
@@ -93,9 +95,11 @@ describe('careStatus', () => {
   it('uses the care context day, not the instant', () => {
     const now = at('2026-11-11T23:30:00Z')
     const due = day('2026-11-11')
-    expect(careStatus(due, CareDays.today('Europe/Paris', now))._tag).toBe(
-      'Overdue'
-    )
-    expect(careStatus(due, CareDays.today('UTC', now))._tag).toBe('DueToday')
+    expect(
+      careStatus(due, CareDays.today(ZoneName.make('Europe/Paris'), now))._tag
+    ).toBe('Overdue')
+    expect(
+      careStatus(due, CareDays.today(ZoneName.make('UTC'), now))._tag
+    ).toBe('DueToday')
   })
 })

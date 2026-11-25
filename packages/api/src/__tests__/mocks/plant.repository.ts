@@ -20,9 +20,11 @@ import type { plantPhotos, plants } from '@lily/db/schema'
 import {
   CareDay,
   compact,
+  DEFAULT_ZONE,
   type Orientation,
   type PlantOwner,
   paginate,
+  type ZoneName,
 } from '@lily/shared'
 import type { PlantPhoto } from '@lily/shared/plant'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
@@ -56,7 +58,7 @@ interface MockPlantRepositoryData {
   memberships?: MockMembership[]
   schedules?: CareScheduleRow[]
   /** Care timezone by owner id (user id or canopy id). Defaults to UTC. */
-  timezones?: Readonly<Record<string, string>>
+  timezones?: Readonly<Record<string, ZoneName>>
 }
 
 export const createMockPlantRepository = (
@@ -113,7 +115,8 @@ export const createMockPlantRepository = (
           lastCareLogDay: null,
         }))
       ),
-      careTimezone: data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? 'UTC',
+      careTimezone:
+        data.timezones?.[p.canopyId ?? p.userId ?? ''] ?? DEFAULT_ZONE,
       now: DateTime.nowUnsafe(),
     })
 

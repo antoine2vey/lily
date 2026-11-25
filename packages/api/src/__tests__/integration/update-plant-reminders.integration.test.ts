@@ -31,6 +31,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { PlantUpdateRequest } from '@lily/shared/plant'
 import { asc, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -145,7 +146,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: 'plant-reminders@example.com',
           name: 'Reminders',
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })

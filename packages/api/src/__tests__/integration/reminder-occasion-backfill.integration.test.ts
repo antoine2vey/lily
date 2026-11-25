@@ -14,7 +14,7 @@ import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { type CareDay, CareDays } from '@lily/shared'
+import { type CareDay, CareDays, ZoneName } from '@lily/shared'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, Record, References } from 'effect'
@@ -43,8 +43,8 @@ const StoreLive = Layer.mergeAll(
 const HOUR_MS = 3_600_000
 const DAY_MS = 24 * HOUR_MS
 
-const CARE_ZONE = 'Pacific/Kiritimati'
-const RECIPIENT_ZONE = 'Etc/GMT+12'
+const CARE_ZONE = ZoneName.make('Pacific/Kiritimati')
+const RECIPIENT_ZONE = ZoneName.make('Etc/GMT+12')
 const SEND_HOUR = 21
 
 type Seed = Partial<typeof schema.notifications.$inferInsert>
@@ -86,7 +86,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `${name}-${Date.now()}@example.com`,
           name,
           emailVerified: true,
-          timezone,
+          timezone: sql`${timezone}`,
           preferredNotificationTime: `${SEND_HOUR}:00`,
         })
         .returning({ id: schema.users.id })
@@ -278,7 +278,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     it('gives a pending row the stored due day and any other recent row the care day of its instant', async () => {
       const inCareZone = careDayOf(yesterdayEveningUtc, CARE_ZONE)
-      expect(inCareZone).not.toBe(careDayOf(yesterdayEveningUtc, 'UTC'))
+      expect(inCareZone).not.toBe(
+        careDayOf(yesterdayEveningUtc, ZoneName.make('UTC'))
+      )
 
       expect(await occasionOf()).toMatchObject({
         waiting: inThreeDays,
@@ -288,7 +290,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'sent long ago': null,
         'of a dead plant': null,
         'overdue reminder': null,
-        'unknown timezone': careDayOf(yesterdayEveningUtc, 'UTC'),
+        'unknown timezone': careDayOf(
+          yesterdayEveningUtc,
+          ZoneName.make('UTC')
+        ),
       })
     })
 

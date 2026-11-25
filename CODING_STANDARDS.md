@@ -28,6 +28,7 @@ The `String` module (`String.toUpperCase`, `String.includes`, `String.split`, ..
 - Current time: `DateTime.nowUnsafe()` (for `new Date()`). Parsing: `DateTime.make(iso)`, which returns an `Option` (for `new Date(iso)`).
 - Date math: `DateTime.distance` (returns a `Duration`), the `Duration` module, `DateTime.toParts`. Calendar days go through `CareDays`, and `lint/no-instant-day-math.grit` fails on day math done on instants.
 - `DateTime.make` / `makeUnsafe` parts take singular keys (`hour`, `minute`, `second`, `millisecond`). Plural v3 keys (`hours`, ...) typecheck but are silently dropped.
+- Zone names are `ZoneName`, decoded once where they enter: a request schema, the `users.timezone` and `canopies.timezone` column type, or the device's Intl zone (`getDeviceTimezone`). The date helpers take only a `ZoneName`, so a raw string fails `tsc`. An absent zone becomes `DEFAULT_ZONE` at that boundary.
 - `@lily/shared` wraps the common cases: `parseApiDate`, `now`, `nowAsDate`, `daysSince`, `isOverdue`, `isFuture` and more, in `packages/shared/src/domains/common/date/`.
 
 ## Imports

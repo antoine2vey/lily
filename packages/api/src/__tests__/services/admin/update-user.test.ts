@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
 import {
   createMockGCSService,
@@ -28,7 +29,7 @@ const mockAdminContext: UserProfile = {
 
 const mockAdminLayer = Layer.succeed(AdminUser, mockAdminContext)
 
-const deps = (users: User[]) =>
+const deps = (users: UserFixture[]) =>
   Layer.mergeAll(
     createMockUserRepository(users),
     mockAdminLayer,

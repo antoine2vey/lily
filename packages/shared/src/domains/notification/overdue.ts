@@ -1,6 +1,6 @@
 import { Array, DateTime, Effect, Option, pipe } from 'effect'
-
-import { zoneFromNameOrUtc } from '../common/date/timezone'
+import { zoneFromName } from '../common/date/timezone'
+import type { ZoneName } from '../common/date/zone-name'
 import { DndWindowBlockedError } from './errors'
 import { isInDndWindow, timeToMinutes } from './timezone'
 
@@ -16,8 +16,8 @@ const EVENING: SendWindow = { start: 18 * 60, end: 22 * 60 }
 /** Who a send time is picked for. */
 export interface SlotRecipient {
   readonly id: string
-  /** IANA zone, read as UTC when unknown. */
-  readonly timezone: string
+  /** The zone the windows are read in. */
+  readonly timezone: ZoneName
   readonly doNotDisturb: boolean
   /** HH:mm, 22:00 when absent. */
   readonly doNotDisturbStart: string | null
@@ -65,8 +65,8 @@ const minuteIn = ({ start, end }: SendWindow, randomValue: number): number => {
   return start + Math.floor(position * (end - start))
 }
 
-const localNow = (timezone: string) =>
-  DateTime.setZone(DateTime.nowUnsafe(), zoneFromNameOrUtc(timezone))
+const localNow = (timezone: ZoneName) =>
+  DateTime.setZone(DateTime.nowUnsafe(), zoneFromName(timezone))
 
 const todayAtMinute = (now: DateTime.Zoned, minute: number): Date => {
   const { year, month, day } = DateTime.toParts(now)

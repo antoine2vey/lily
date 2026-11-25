@@ -1,4 +1,5 @@
 import { mockCanopyId } from '@lily/api/__tests__/fixtures/canopies'
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import { mockAdminUser } from '@lily/api/__tests__/fixtures/users'
 import { NoStoredPhotosLive } from '@lily/api/__tests__/mocks/account-photo.repository'
 import type { MockCanopySurroundings } from '@lily/api/__tests__/mocks/canopy'
@@ -23,7 +24,6 @@ import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/sched
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
 import { deleteAccount } from '@lily/api/services/user/endpoints/delete-account'
-import type { User } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Array, Effect, Exit, Layer, Option } from 'effect'
 import { SqlError, UnknownError } from 'effect/sql/SqlError'
@@ -94,9 +94,9 @@ const canopyFailingFor = (failingUserId: string): MockCanopySurroundings => ({
 })
 
 const recordingUsers = (
-  users: User[],
+  users: UserFixture[],
   writes: string[],
-  expired: User[] = []
+  expired: UserFixture[] = []
 ) =>
   Layer.effect(
     UserRepository,

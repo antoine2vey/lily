@@ -40,6 +40,7 @@ import { careMultiplePlants } from '@lily/api/services/plants/endpoints/care-mul
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
   Array as Arr,
@@ -125,7 +126,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           emailVerified: true,
           role: 'user',
           status: 'active',
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
           careReminders: true,
           preferredNotificationTime: '09:00',
         })

@@ -42,6 +42,7 @@ import {
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type { NotificationTopic } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -71,8 +72,8 @@ const kolkataClock = (date: Date) =>
 
 const etcZoneWithLocalHour = (localHour: number, now: Date) => {
   const offset = ((localHour - now.getUTCHours() + 36) % 24) - 12
-  if (offset === 0) return 'UTC'
-  return offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`
+  if (offset === 0) return ZoneName.make('UTC')
+  return ZoneName.make(offset > 0 ? `Etc/GMT-${offset}` : `Etc/GMT+${-offset}`)
 }
 
 const floorToHour = (date: Date) =>
@@ -474,7 +475,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const now = new Date()
         const dndUserId = await insertUser('dnd_user', {
           doNotDisturb: true,
-          timezone: 'Asia/Kolkata',
+          timezone: ZoneName.make('Asia/Kolkata'),
           doNotDisturbStart: kolkataClock(
             new Date(now.getTime() - 60 * 60_000)
           ),
@@ -521,7 +522,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           insertDue(
             await insertUser(name, {
               doNotDisturb: true,
-              timezone: 'Asia/Kolkata',
+              timezone: ZoneName.make('Asia/Kolkata'),
               doNotDisturbStart: kolkataClock(inMinutes(-60)),
               doNotDisturbEnd: kolkataClock(inMinutes(endsIn)),
             }),
@@ -556,7 +557,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const now = new Date()
         const dndUserId = await insertUser('drain_dnd_user', {
           doNotDisturb: true,
-          timezone: 'Asia/Kolkata',
+          timezone: ZoneName.make('Asia/Kolkata'),
           doNotDisturbStart: kolkataClock(
             new Date(now.getTime() - 60 * 60_000)
           ),

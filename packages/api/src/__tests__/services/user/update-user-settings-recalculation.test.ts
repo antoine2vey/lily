@@ -28,7 +28,7 @@ import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.reposit
 import type { CanopyRepository } from '@lily/api/repositories/canopy.repository'
 import { updateUserSettings } from '@lily/api/services/user/endpoints/update-user-settings'
 import type { CareType } from '@lily/shared'
-import { TimeZone } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { Effect, Layer } from 'effect'
@@ -52,7 +52,7 @@ const testPlant = createTestPlant({
 
 const testUser = {
   ...mockUser1,
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   preferredNotificationTime: '09:00',
 }
 
@@ -78,7 +78,7 @@ const update = (
     readonly user?: typeof testUser
     readonly plants?: TestPlant[]
     readonly canopy?: Layer.Layer<CanopyRepository>
-    readonly careTimezones?: Readonly<Record<string, string>>
+    readonly careTimezones?: Readonly<Record<string, ZoneName>>
   }
 ) => {
   const plants = scenario.plants ?? [testPlant]
@@ -133,7 +133,7 @@ describe('updateUserSettings - reminder rebuild', () => {
     const notifications = pendingWatering()
 
     await update(
-      { timezone: TimeZone.make('America/New_York') },
+      { timezone: ZoneName.make('America/New_York') },
       { notifications }
     )
 
@@ -146,7 +146,7 @@ describe('updateUserSettings - reminder rebuild', () => {
     const notifications = pendingWatering()
 
     await update(
-      { timezone: TimeZone.make('America/New_York') },
+      { timezone: ZoneName.make('America/New_York') },
       {
         notifications,
         user: {
@@ -225,17 +225,17 @@ describe('updateUserSettings - reminder rebuild', () => {
     })
 
     await update(
-      { timezone: TimeZone.make('America/New_York') },
+      { timezone: ZoneName.make('America/New_York') },
       {
         notifications,
         plants: [canopyPlant],
-        careTimezones: { [mockCanopyId]: 'Europe/Paris' },
+        careTimezones: { [mockCanopyId]: ZoneName.make('Europe/Paris') },
         canopy: createMockCanopyRepository(
           createCanopyStore({
             canopies: [
               createTestCanopyRow({
                 id: mockCanopyId,
-                timezone: 'Europe/Paris',
+                timezone: ZoneName.make('Europe/Paris'),
               }),
             ],
             members: [createTestMembership({ userId: 'user-1' })],

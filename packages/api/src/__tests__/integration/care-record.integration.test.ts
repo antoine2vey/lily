@@ -37,7 +37,7 @@ import { GCSService } from '@lily/api/services/file/gcs'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -182,7 +182,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
         email: 'care-record@example.com',
         name: 'Care Record User',
         emailVerified: true,
-        timezone: 'UTC',
+        timezone: ZoneName.make('UTC'),
       })
       .returning()
     if (!user) throw new Error('user insert failed')
@@ -285,7 +285,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
   it('moves the due day to the care day plus the frequency, at midnight of the care timezone', async () => {
     await db
       .update(schema.users)
-      .set({ timezone: 'Europe/Paris' })
+      .set({ timezone: ZoneName.make('Europe/Paris') })
       .where(eq(schema.users.id, userId))
     const plantId = await addPlant('Paris Plant')
 
@@ -295,7 +295,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
     const dueDay = CareDays.addDays(recorded.day, 7)
     expect(recorded.dueDay).toEqual(Option.some(dueDay))
     expect(schedule?.nextCareAt).toEqual(
-      DateTime.toDateUtc(CareDays.startOf(dueDay, 'Europe/Paris'))
+      DateTime.toDateUtc(
+        CareDays.startOf(dueDay, ZoneName.make('Europe/Paris'))
+      )
     )
     expect(schedule?.lastCareAt).toBeInstanceOf(Date)
   })
@@ -303,7 +305,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
   it('counts a Canopy plant day in the Canopy timezone, not the acting member', async () => {
     const [canopy] = await db
       .insert(schema.canopies)
-      .values({ name: 'Flat', timezone: 'Pacific/Auckland' })
+      .values({ name: 'Flat', timezone: ZoneName.make('Pacific/Auckland') })
       .returning()
     if (!canopy) throw new Error('canopy insert failed')
     const shared = await addPlant('Shared Fern', undefined, {
@@ -371,7 +373,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
   describe('editing history', () => {
     const daysAgo = (days: number) => new Date(Date.now() - days * 86_400_000)
-    const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const dayOf = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     const addCare = async (
       plantId: string,
       date: Date,
@@ -515,7 +518,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
           email: 'other-carer@example.com',
           name: 'Other Carer',
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!other) throw new Error('user insert failed')
@@ -764,7 +767,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
       expect(
         CareDays.of(
           DateTime.makeUnsafe(reminders[0]?.scheduledAt ?? new Date(0)),
-          'UTC'
+          ZoneName.make('UTC')
         )
       ).toBe(dueDay)
       expect(Array.map(publishedEvents, (e) => e._tag)).toEqual([
@@ -899,7 +902,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Care - Integration', () => {
 
   describe('schedules', () => {
     const DAY = 86_400_000
-    const utcDay = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const utcDay = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     const editPermit = (plantId: string) =>
       mintPermit(plantId, 'edit', Actor.User({ userId }))
     const setWatering = (plantId: string, days: Option.Option<number>) =>

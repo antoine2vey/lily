@@ -1,3 +1,4 @@
+import type { UserFixture } from '@lily/api/__tests__/fixtures/users'
 import {
   mockAdminUser,
   mockSuspendedUser,
@@ -6,7 +7,7 @@ import {
 import { createMockJWTService } from '@lily/api/__tests__/mocks/jwt.service'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { validateUserFromToken } from '@lily/api/services/auth/user-validator'
-import { UnauthorizedError, type User } from '@lily/shared'
+import { UnauthorizedError } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Redacted } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -14,7 +15,7 @@ import { describe, expect, it } from 'vitest'
 describe('Authentication Middleware (validateUserFromToken)', () => {
   const createTestLayer = (options: {
     jwtOptions?: Parameters<typeof createMockJWTService>[0]
-    users?: User[]
+    users?: UserFixture[]
   }) =>
     Layer.mergeAll(
       createMockJWTService(options.jwtOptions),

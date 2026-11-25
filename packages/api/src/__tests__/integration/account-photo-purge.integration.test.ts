@@ -28,6 +28,7 @@ import { cleanupExpiredAccounts } from '@lily/api/services/account-cleanup/sched
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -164,7 +165,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const canopyOf = async (ownerId: string, memberId: string) => {
       const [canopy] = await db
         .insert(schema.canopies)
-        .values({ name: 'Flat', timezone: 'UTC' })
+        .values({ name: 'Flat', timezone: ZoneName.make('UTC') })
         .returning()
       if (!canopy) throw new Error('Failed to create canopy')
       await db.insert(schema.canopyMembers).values([

@@ -29,6 +29,7 @@ import {
   CareDays,
   type CareType,
   type PlantOwner,
+  ZoneName,
 } from '@lily/shared'
 import { DateTime, Effect, Layer, Option } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -46,7 +47,7 @@ const user = (
   doNotDisturb: false,
   doNotDisturbStart: '22:00',
   doNotDisturbEnd: '07:00',
-  timezone: 'UTC',
+  timezone: ZoneName.make('UTC'),
   vacationStatus: 'none',
   vacationStart: null,
   vacationEnd: null,
@@ -475,7 +476,8 @@ describe('loadPlantFacts', () => {
       }
     )
     expect(facts.get('plant-1')?.hasOverdueCare).toBe(true)
-    const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+    const dayOf = (date: Date) =>
+      CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
     expect(facts.get('plant-1')?.nearlyDue).toEqual([
       dueOn('watering', dayOf(yesterday)),
     ])

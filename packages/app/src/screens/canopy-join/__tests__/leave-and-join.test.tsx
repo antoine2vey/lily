@@ -3,6 +3,7 @@ import {
   type CanopyId,
   CanopyInviteNotFoundError,
   type CanopyInvitePreview,
+  ZoneName,
 } from '@lily/shared'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
@@ -30,7 +31,7 @@ const preview: CanopyInvitePreview = {
 const mockLoft: Canopy = {
   id: 'canopy-1' as CanopyId,
   name: 'Loft',
-  timezone: 'Europe/Paris',
+  timezone: ZoneName.make('Europe/Paris'),
   latitude: null,
   longitude: null,
   role: 'owner',

@@ -39,7 +39,7 @@ import {
 } from '@lily/api/services/care-plans/helpers/with-care-plan-auth'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays } from '@lily/shared'
+import { CareDays, ZoneName } from '@lily/shared'
 import type { CarePlanStatus } from '@lily/shared/care-plan'
 import { defectOf, failureOf } from '@lily/shared/testing'
 import { and, asc, eq, sql } from 'drizzle-orm'
@@ -79,7 +79,8 @@ const RepositoriesLive = Layer.mergeAll(
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
 const daysFromNow = (days: number) => new Date(Date.now() + days * 86_400_000)
-const dayOf = (date: Date) => CareDays.of(DateTime.makeUnsafe(date), 'UTC')
+const dayOf = (date: Date) =>
+  CareDays.of(DateTime.makeUnsafe(date), ZoneName.make('UTC'))
 
 interface SeedStep {
   readonly title: string
@@ -246,7 +247,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           email: `alex-${stamp}@example.com`,
           name: `Alex-${stamp}`,
           emailVerified: true,
-          timezone: 'UTC',
+          timezone: ZoneName.make('UTC'),
         })
         .returning()
       if (!alex) throw new Error('user insert returned nothing')
@@ -569,6 +570,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           Effect.tryPromise({
             try: async () =>
               (await createDiagnosisTool({
+                timezone: ZoneName.make('UTC'),
                 runtime,
                 userId: alexId,
                 permit: chatPermit(plantId, alexId),

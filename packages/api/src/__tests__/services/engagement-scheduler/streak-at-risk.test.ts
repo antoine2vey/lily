@@ -9,6 +9,7 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import type { UserWithSettings } from '@lily/api/repositories/engagement.repository'
 import { streakAtRisk } from '@lily/api/services/engagement-scheduler/scheduler'
 import { runRules } from '@lily/api/services/helpers/engagement-rules'
+import { ZoneName } from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { DateTime, Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -17,7 +18,7 @@ import { describe, expect, it } from 'vitest'
 freezeClock(SUNDAY_10_IN_PARIS)
 
 // Find a timezone where local hour >= 18 (past 6 PM)
-const findEveningTimezone = (): string | null => {
+const findEveningTimezone = (): ZoneName | null => {
   const candidates = [
     'Pacific/Auckland',
     'Asia/Tokyo',
@@ -35,7 +36,7 @@ const findEveningTimezone = (): string | null => {
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
     )
-    if (DateTime.toParts(zoned).hour >= 18) return tz
+    if (DateTime.toParts(zoned).hour >= 18) return ZoneName.make(tz)
   }
   return null
 }
@@ -139,7 +140,7 @@ describe('processStreakAtRisk', () => {
   it('skips user before 6 PM local time', async () => {
     // Pick a timezone where local time is guaranteed < 18:00
     // We check dynamically to avoid time-of-day flakiness
-    const tz = 'America/Los_Angeles'
+    const tz = ZoneName.make('America/Los_Angeles')
     const localNow = DateTime.setZone(
       DateTime.nowUnsafe(),
       DateTime.zoneMakeNamedUnsafe(tz)
