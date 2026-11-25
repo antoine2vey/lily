@@ -24,8 +24,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "tsc": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
+    "tsc": "tsc --noEmit --tsBuildInfoFile tsconfig.check.tsbuildinfo",
+    "typecheck": "tsc --noEmit --tsBuildInfoFile tsconfig.check.tsbuildinfo",
     "test": "vitest run",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",

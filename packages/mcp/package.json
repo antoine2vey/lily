@@ -20,7 +20,7 @@
     "build": "tsc",
     "dev": "bun --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit --tsBuildInfoFile tsconfig.check.tsbuildinfo",
     "test": "vitest run",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write .",
