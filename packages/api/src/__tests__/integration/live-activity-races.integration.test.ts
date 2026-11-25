@@ -244,10 +244,15 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     ) => {
       const sent: LiveActivityPushMessage[] = []
       const exit = await Effect.runPromiseExit(
-        Effect.all(Arr.map(messages, processMessage), {
-          concurrency: 'unbounded',
-          discard: true,
-        }).pipe(
+        Effect.all(
+          Arr.map(messages, (message) =>
+            processMessage(message, `claim-${message.id}`)
+          ),
+          {
+            concurrency: 'unbounded',
+            discard: true,
+          }
+        ).pipe(
           Effect.provide(
             Layer.mergeAll(
               RepositoriesLive,
@@ -609,7 +614,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const deliver = async () => {
         const sent: LiveActivityPushMessage[] = []
         await Effect.runPromise(
-          processMessage(enqueued[0] as QueueMessage).pipe(
+          processMessage(enqueued[0] as QueueMessage, 'claim-1').pipe(
             Effect.provide(
               Layer.mergeAll(
                 RepositoriesLive,
@@ -651,7 +656,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
       await db
         .update(schema.notifications)
-        .set({ status: 'queued' })
+        .set({ status: 'queued', pushStartedAt: null })
         .where(eq(schema.notifications.userId, caretaker.id))
       const withOwnPlant = await deliver()
       expect(withOwnPlant).toEqual(['LiveActivityStart:caretaker-start'])

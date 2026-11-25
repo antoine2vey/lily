@@ -170,7 +170,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .set({ language: 'fr' })
         .where(eq(schema.users.id, user.id))
       for (const message of enqueued) {
-        await run(processMessage(message))
+        await run(processMessage(message, 'claim-1'))
       }
 
       const french = {
@@ -226,7 +226,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       )
       await run(dispatchNow(sent))
       for (const message of enqueued) {
-        await run(processMessage(message))
+        await run(processMessage(message, 'claim-1'))
       }
 
       const milestone = buildSimpleContent(

@@ -1,5 +1,7 @@
 import {
+  type AlertOwed,
   type CreateDeadLetterData,
+  type DeadLetterMessage,
   DeadLetterRepository,
 } from '@lily/api/repositories/dead-letter.repository'
 import { DeviceTokenRepository } from '@lily/api/repositories/device-token.repository'
@@ -47,7 +49,8 @@ import {
   PushSendError,
   type PushTicket,
 } from '@lily/api/services/push/types'
-import { type NotificationTopic, TOPIC_CATEGORY } from '@lily/shared'
+import { UNKNOWN_MESSAGE_ID } from '@lily/db/schema'
+import { type NotificationTopic, nowAsDate, TOPIC_CATEGORY } from '@lily/shared'
 import {
   Array,
   Cause,
@@ -72,6 +75,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 export const VISIBILITY_TIMEOUT = Duration.minutes(10)
 export const CLAIM_REFRESH_INTERVAL = Duration.minutes(1)
 const DELIVERY_TIMEOUT = Duration.hours(1)
+const UNCONFIRMED = 'delivery not confirmed'
 
 // Care reminders are the "do it today or it slips" cluster — we want them to
 // pierce Focus/DND on iOS 15+ so the plant actually gets cared for. Everything
@@ -160,6 +164,7 @@ const ticketErrors = (tickets: ReadonlyArray<ErrorTicket>) =>
 
 const gateClaimedRows = (
   message: QueueMessage,
+  claim: string,
   claimedIds: ReadonlyArray<string>
 ) =>
   Effect.gen(function* () {
@@ -212,7 +217,7 @@ const gateClaimedRows = (
       })
     })
     yield* notificationRepo.deleteByIds(dropIds)
-    yield* notificationRepo.deferUntil(deferred, Option.some(message.id))
+    yield* notificationRepo.deferUntil(deferred, Option.some(claim))
 
     return {
       sendRows,
@@ -221,8 +226,55 @@ const gateClaimedRows = (
     }
   })
 
+/**
+ * Sends the alert of a dead letter unless one already went out. The record
+ * and the alert share a transaction: a second consumer waits for the first,
+ * and a consumer that stops before the commit leaves the alert to the
+ * redelivery.
+ */
+const alertDeadLetterOnce = <R>(
+  owed: AlertOwed,
+  alert: (deadLetter: DeadLetterMessage) => Effect.Effect<void, never, R>
+) =>
+  Effect.gen(function* () {
+    const deadLetterRepo = yield* DeadLetterRepository
+    const sql = yield* SqlClient.SqlClient
+    yield* sql.withTransaction(
+      Effect.flatMap(deadLetterRepo.takeAlert(owed), (deadLetter) =>
+        Option.match(Option.fromNullishOr(deadLetter), {
+          onNone: () => Effect.void,
+          onSome: alert,
+        })
+      )
+    )
+  })
+
+const alertExhausted = (
+  message: QueueMessage,
+  notificationIds: ReadonlyArray<string>,
+  error: string
+) =>
+  Effect.gen(function* () {
+    const alerter = yield* Alerter
+    yield* Effect.logError('Message moved to dead letter queue', {
+      messageId: message.id,
+      notificationIds,
+      error,
+    })
+    yield* alerter.alertWarning(
+      'notification-worker',
+      'Message moved to dead letter queue',
+      { messageId: message.id, topic: message.topic, notificationIds, error }
+    )
+  })
+
+/**
+ * `unclaimed` when this dequeue holds no row of the message: its rows are
+ * sent, held by another message or another dequeue of this one, or failed
+ * by one.
+ */
 export const processMessage = Effect.fn('notification-worker.process')(
-  function* (message: QueueMessage) {
+  function* (message: QueueMessage, claim: string) {
     const { notificationIds } = message.payload
     yield* Effect.annotateCurrentSpan('notification.ids', notificationIds)
     yield* Effect.annotateCurrentSpan('userId', message.payload.userId)
@@ -232,7 +284,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
 
     const claimedIds = yield* notificationRepo.claimForDelivery(
       notificationIds,
-      message.id
+      { messageId: message.id, claim }
     )
     if (Array.isReadonlyArrayEmpty(claimedIds)) {
       yield* Effect.log(
@@ -242,16 +294,16 @@ export const processMessage = Effect.fn('notification-worker.process')(
           notificationIds,
         }
       )
-      return
+      return 'unclaimed'
     }
 
-    const gated = yield* gateClaimedRows(message, claimedIds)
+    const gated = yield* gateClaimedRows(message, claim, claimedIds)
     if (Array.isReadonlyArrayEmpty(gated.sendRows)) {
       yield* Effect.log('Skipping message - the gate kept no row', {
         messageId: message.id,
         notificationIds: claimedIds,
       })
-      return
+      return 'handled'
     }
     const sendRows = Array.sort(
       gated.sendRows,
@@ -277,7 +329,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
         notificationIds: Array.map(sendRows, (row) => row.id),
       })
       yield* notificationRepo.deleteByIds(Array.map(sendRows, (row) => row.id))
-      return
+      return 'handled'
     }
     const delivery = rendered.value
     const sendIds = Array.map(delivery.sent, (row) => row.id)
@@ -306,7 +358,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
       })
       // Still mark as sent since there's no device to send to
       yield* notificationRepo.markManyAsSent(delivery.sent)
-      return
+      return 'handled'
     }
 
     const data: Record<string, unknown> = Record.filter(
@@ -332,6 +384,15 @@ export const processMessage = Effect.fn('notification-worker.process')(
       ...(interruptionLevel ? { interruptionLevel } : {}),
     }))
 
+    const started = yield* notificationRepo.startPush(sendIds, claim)
+    if (Array.isReadonlyArrayEmpty(started)) {
+      yield* Effect.log('Skipping push - a redelivery took the rows', {
+        messageId: message.id,
+        notificationIds: sendIds,
+      })
+      return 'unclaimed'
+    }
+
     const results = yield* pushService.sendBatch(pushMessages)
     if (
       Array.isReadonlyArrayNonEmpty(results) &&
@@ -343,6 +404,7 @@ export const processMessage = Effect.fn('notification-worker.process')(
     }
 
     yield* completeDelivery(message, delivery, results, activeTokens.length)
+    return 'handled'
   }
 )
 
@@ -372,8 +434,10 @@ const readSqlState = Schema.decodeUnknownOption(
   Schema.Struct({ code: Schema.String })
 )
 
+/** `unclaimed` when this dequeue held no row of the message to retry or fail. */
 const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   message: QueueMessage,
+  claim: string,
   cause: SqlError | PushSendError | PushConfigError
 ) {
   const notificationRepo = yield* NotificationDelivery
@@ -386,7 +450,7 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
     Effect.gen(function* () {
       const written = yield* notificationRepo.retryLater(
         message.payload.notificationIds,
-        message.id,
+        claim,
         Array.map(RETRY_DELAYS, (delay) =>
           DateTime.toDateUtc(DateTime.addDuration(now, delay))
         ),
@@ -425,18 +489,49 @@ const retryLater = Effect.fn('notification-worker.retryLater')(function* (
   }
   const failed = Array.filter(attempts, (row) => row.status === 'failed')
   if (Array.isReadonlyArrayNonEmpty(failed)) {
-    const notificationIds = Array.map(failed, (row) => row.id)
-    yield* Effect.logError('Message moved to dead letter queue', {
-      messageId: message.id,
-      notificationIds,
-      error,
-    })
-    yield* alerter.alertWarning(
-      'notification-worker',
-      'Message moved to dead letter queue',
-      { messageId: message.id, topic: message.topic, notificationIds, error }
+    yield* alertDeadLetterOnce({ originalMessageId: message.id }, () =>
+      alertExhausted(
+        message,
+        Array.map(failed, (row) => row.id),
+        error
+      )
     )
   }
+  return Array.isReadonlyArrayEmpty(attempts) ? 'unclaimed' : 'handled'
+})
+
+/**
+ * What a dequeue does for a message whose rows it does not hold. A push
+ * that started before this dequeue and was never confirmed may have reached
+ * the phone, so its rows fail with a dead letter in place of a second push.
+ * And another dequeue that wrote a dead letter may have stopped before its
+ * alert.
+ */
+const settleEarlierDelivery = Effect.fn(
+  'notification-worker.settleEarlierDelivery'
+)(function* (message: QueueMessage, dequeuedAt: Date) {
+  const notificationRepo = yield* NotificationDelivery
+  const deadLetterRepo = yield* DeadLetterRepository
+  const sql = yield* SqlClient.SqlClient
+  const { notificationIds } = message.payload
+  yield* sql.withTransaction(
+    Effect.gen(function* () {
+      const failed = yield* notificationRepo.failUnconfirmed(
+        notificationIds,
+        message.id,
+        dequeuedAt,
+        UNCONFIRMED
+      )
+      if (Array.isReadonlyArrayNonEmpty(failed)) {
+        yield* deadLetterRepo.create(
+          deadLetterFor(message, failed, UNCONFIRMED)
+        )
+      }
+    })
+  )
+  yield* alertDeadLetterOnce({ originalMessageId: message.id }, (owed) =>
+    alertExhausted(message, notificationIds, owed.error)
+  )
 })
 
 const readEntry = Schema.decodeUnknownOption(
@@ -493,6 +588,7 @@ const readPoisonIds = (entry: Option.Option<unknown>): PoisonIds => {
 const discardPoisonMessage = (
   topic: string,
   ids: PoisonIds,
+  claim: string,
   payload: object | string,
   rawData: string,
   rawError: string
@@ -502,6 +598,7 @@ const discardPoisonMessage = (
     const alerter = yield* Alerter
     const deadLetterRepo = yield* DeadLetterRepository
     const notificationRepo = yield* NotificationDelivery
+    const sql = yield* SqlClient.SqlClient
 
     const headline = pipe(error, Str.split('\n'), Array.headNonEmpty)
 
@@ -512,45 +609,74 @@ const discardPoisonMessage = (
       error,
     })
 
-    const claimedIds = yield* Option.match(ids.messageId, {
-      onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
-      onSome: (id) =>
-        Effect.map(
-          Effect.forEach(
-            Array.chunksOf(ids.notificationIds, MAX_NOTIFICATION_IDS),
-            (chunk) => notificationRepo.claimForDelivery(chunk, id)
-          ),
-          Array.flatten
-        ),
-    })
     const deadLetter = {
-      originalMessageId: Option.getOrElse(ids.messageId, () => 'unknown'),
+      originalMessageId: Option.getOrElse(
+        ids.messageId,
+        () => UNKNOWN_MESSAGE_ID
+      ),
       topic,
       error,
       retryCount: ids.retryCount,
     }
-    yield* deadLetterRepo.create({ ...deadLetter, payload }).pipe(
-      Effect.catchTag('SqlError', () =>
-        deadLetterRepo.create({
-          ...deadLetter,
-          payload: toPostgresText(rawData),
+    // One transaction, so a redelivery finds the dead letter and the failed
+    // rows together or not at all. The first write runs in a savepoint: a
+    // payload Postgres refuses must not abort the write of its raw text.
+    const written = yield* sql.withTransaction(
+      Effect.gen(function* () {
+        const claimedIds = yield* Option.match(ids.messageId, {
+          onNone: () => Effect.succeed<ReadonlyArray<string>>([]),
+          onSome: (messageId) =>
+            Effect.map(
+              Effect.forEach(
+                Array.chunksOf(ids.notificationIds, MAX_NOTIFICATION_IDS),
+                (chunk) =>
+                  notificationRepo.claimForDelivery(chunk, { messageId, claim })
+              ),
+              Array.flatten
+            ),
         })
-      )
+        const stored = yield* sql
+          .withTransaction(deadLetterRepo.create({ ...deadLetter, payload }))
+          .pipe(
+            Effect.catchTag('SqlError', () =>
+              deadLetterRepo.create({
+                ...deadLetter,
+                payload: toPostgresText(rawData),
+              })
+            )
+          )
+        yield* Effect.forEach(
+          Array.chunksOf(claimedIds, MAX_NOTIFICATION_IDS),
+          (chunk) => notificationRepo.markManyAsFailed(chunk, headline),
+          { discard: true }
+        )
+        return stored
+      })
     )
+    // An entry without an id has no dead letter to find again, so its alert
+    // is owed by the row just written.
+    const owed = Option.match(ids.messageId, {
+      onSome: (originalMessageId): Option.Option<AlertOwed> =>
+        Option.some({ originalMessageId }),
+      onNone: () =>
+        Option.map(Option.fromNullishOr(written), ({ id }) => ({ id })),
+    })
     yield* Effect.forEach(
-      Array.chunksOf(claimedIds, MAX_NOTIFICATION_IDS),
-      (chunk) => notificationRepo.markManyAsFailed(chunk, headline),
+      Option.toArray(owed),
+      (alertOwed) =>
+        alertDeadLetterOnce(alertOwed, () =>
+          alerter.alert({
+            _tag: 'UnhandledDefect',
+            source: 'notification-worker',
+            message: `${topic}: ${headline}`,
+            stack: Option.match(ids.messageId, {
+              onNone: () => error,
+              onSome: (id) => `message ${id}\n${error}`,
+            }),
+          })
+        ),
       { discard: true }
     )
-    yield* alerter.alert({
-      _tag: 'UnhandledDefect',
-      source: 'notification-worker',
-      message: `${topic}: ${headline}`,
-      stack: Option.match(ids.messageId, {
-        onNone: () => error,
-        onSome: (id) => `message ${id}\n${error}`,
-      }),
-    })
   })
 
 const MAX_STORED_DEPTH = 64
@@ -599,11 +725,27 @@ const discardUndecodable = (error: QueueMessageDecodeError) =>
         Option.match({ onNone: () => 'unknown', onSome: (m) => m.topic })
       ),
       readPoisonIds(entry),
+      error.claim,
       storablePayload(entry, error.rawData),
       error.rawData,
       Str.replace(/\n\s*/g, ' ')(error.message)
     )
     yield* queue.ack(error.claim)
+  })
+
+const keepClaim = (claim: string) =>
+  Effect.gen(function* () {
+    const queue = yield* MessageQueue
+    return yield* queue.refreshClaim(claim).pipe(
+      Effect.catchTag('QueueOperationError', (error) =>
+        Effect.logWarning('[notification-worker] Failed to refresh claim', {
+          claim,
+          error: String(error),
+        })
+      ),
+      Effect.delay(CLAIM_REFRESH_INTERVAL),
+      Effect.forever
+    )
   })
 
 export const consumeNext = Effect.gen(function* () {
@@ -614,6 +756,7 @@ export const consumeNext = Effect.gen(function* () {
   if (!result) return false
 
   const { message, rawData, claim } = result
+  const dequeuedAt = nowAsDate()
   const { topic } = message
 
   const processDequeued = Effect.gen(function* () {
@@ -623,10 +766,10 @@ export const consumeNext = Effect.gen(function* () {
       retryCount: message.retryCount,
     })
 
-    yield* processMessage(message).pipe(
+    const outcome = yield* processMessage(message, claim).pipe(
       Effect.catchTag(
         ['SqlError', 'PushSendError', 'PushConfigError'],
-        (error) => retryLater(message, error)
+        (error) => retryLater(message, claim, error)
       ),
       Effect.catchDefect((defect) =>
         discardPoisonMessage(
@@ -637,29 +780,22 @@ export const consumeNext = Effect.gen(function* () {
             malformedIds: [],
             retryCount: message.retryCount,
           },
+          claim,
           message,
           rawData,
           Cause.pretty(Cause.die(defect))
-        )
+        ).pipe(Effect.as('handled' as const))
       )
     )
+    if (outcome === 'unclaimed') {
+      yield* settleEarlierDelivery(message, dequeuedAt)
+    }
 
     yield* queue.ack(claim)
   })
 
-  const keepClaim = queue.refreshClaim(claim).pipe(
-    Effect.catchTag('QueueOperationError', (error) =>
-      Effect.logWarning('[notification-worker] Failed to refresh claim', {
-        messageId: message.id,
-        error: String(error),
-      })
-    ),
-    Effect.delay(CLAIM_REFRESH_INTERVAL),
-    Effect.forever
-  )
-
   yield* processDequeued.pipe(
-    Effect.raceFirst(keepClaim),
+    Effect.raceFirst(keepClaim(claim)),
     Effect.withSpan('notification-worker.consume', {
       attributes: { topic },
     })
@@ -668,7 +804,10 @@ export const consumeNext = Effect.gen(function* () {
   return true
 }).pipe(
   Effect.catchTag('QueueMessageDecodeError', (error) =>
-    Effect.as(discardUndecodable(error), true)
+    discardUndecodable(error).pipe(
+      Effect.raceFirst(keepClaim(error.claim)),
+      Effect.as(true)
+    )
   )
 )
 
@@ -685,7 +824,7 @@ export const recoverStrandedDeliveries = Effect.gen(function* () {
   )
   const failed = yield* notificationRepo.failAbandonedDeliveries(
     DateTime.toDateUtc(DateTime.subtractDuration(now, DELIVERY_TIMEOUT)),
-    'delivery not confirmed'
+    UNCONFIRMED
   )
 
   const requeued = yield* queue.requeueStale(VISIBILITY_TIMEOUT)

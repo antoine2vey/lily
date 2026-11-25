@@ -264,7 +264,7 @@ The services in `src/services/email/`, `src/services/event-bus/`, `src/services/
 | **Service interface** | A `Context.Service` tag with an `I<Name>` interface and no implementation, such as `MessageQueue` with `IMessageQueue`. | |
 | **Provider** | The layer that implements a service interface. It sits beside the interface as a `*.provider.ts` file, such as `RedisMessageQueueLive` in `src/services/message-queue/redis.provider.ts`. | |
 | **App event** | One member of `AppEvent`, published on the `EventBus`, such as `PlantCreated` or `CareLogCreated`. Delivery is fire-and-forget, so a subscriber that is not listening misses it. Achievements and Live Activities listen for them. | "fact", which is what an api context publishes on the outbox |
-| **Queue message** | A `QueueMessage` on the `MessageQueue`. It asks for the delivery of the notifications it names under one notification topic, and the queue delivers it at least once. | |
+| **Queue message** | A `QueueMessage` on the `MessageQueue`. It asks for the delivery of the notifications it names under one notification topic, and the queue delivers it at least once. A notification is still pushed at most once. The worker stamps `push_started_at` on the row before the push, no later dequeue pushes a stamped row, and a redelivery fails a stamped row whose push was never confirmed, with a dead letter and an alert. | |
 | **Claim** | The handle `dequeue` returns with a queue message. `ack` finishes it, `refreshClaim` keeps it alive, and `requeueStale` puts back every message whose claim is older than a given duration. The [knowledge-db Claim](../knowledge-db/CONTEXT.md#ingestion) is a different mechanism, on ingest jobs. | |
 
 ## Relationships
