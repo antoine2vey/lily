@@ -7,6 +7,10 @@ import {
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { ChatTurns } from '@lily/api/services/ai-chat/chat-turns'
 import {
+  RESERVATION_MAX_AGE,
+  sweepUsageReservations,
+} from '@lily/api/services/subscriptions/reservation-sweep'
+import {
   type Billing,
   UsageTracker,
   UsageTrackerLive,
@@ -21,6 +25,7 @@ import {
   Array as Arr,
   ConfigProvider,
   Deferred,
+  Duration,
   Effect,
   Exit,
   Fiber,
@@ -28,6 +33,7 @@ import {
   ManagedRuntime,
   Schema,
 } from 'effect'
+import { SqlError, UnknownError } from 'effect/sql/SqlError'
 import pg from 'pg'
 import {
   afterAll,
@@ -60,6 +66,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     >
     let userId: string
     let limit: number
+    let failNextRelease = false
 
     const ConfigLive = ConfigProvider.layer(
       ConfigProvider.fromUnknown({
@@ -72,10 +79,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     // Same nesting as ServerLive: the turns and the tracker sit above the
     // connection pool, so shutdown interrupts a turn while its refund can
     // still reach Postgres.
+    const FlakyReleaseLive = Layer.effect(
+      SubscriptionRepository,
+      Effect.map(SubscriptionRepository, (repo) => ({
+        ...repo,
+        releaseUsage: (reservationId) =>
+          Effect.suspend(() => {
+            if (!failNextRelease) return repo.releaseUsage(reservationId)
+            failNextRelease = false
+            return Effect.fail(
+              new SqlError({
+                reason: new UnknownError({
+                  cause: new Error('connection lost'),
+                  message: 'connection lost',
+                }),
+              })
+            )
+          }),
+      }))
+    ).pipe(Layer.provide(SubscriptionRepositoryLive))
     const AppLayer = Layer.mergeAll(UsageTrackerLive, ChatTurns.layer).pipe(
       Layer.provideMerge(
         Layer.mergeAll(
-          SubscriptionRepositoryLive,
+          FlakyReleaseLive,
           NotificationRepositoryLive,
           UserRepositoryLive,
           MockAlerterLive
@@ -97,6 +123,23 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           detach: chatTurns.fork,
         })
       })
+
+    const pastTheSweepBound = () =>
+      vi.setSystemTime(
+        Date.now() + Duration.toMillis(RESERVATION_MAX_AGE) + 1000
+      )
+
+    const reservationStates = async () => {
+      const rows = await db
+        .select({ state: schema.usageReservations.state })
+        .from(schema.usageReservations)
+        .innerJoin(
+          schema.subscriptionUsage,
+          eq(schema.usageReservations.usageId, schema.subscriptionUsage.id)
+        )
+        .where(eq(schema.subscriptionUsage.userId, userId))
+      return Arr.map(rows, (row) => row.state)
+    }
 
     const unitsByMonth = async (
       count: 'aiChatsCount' | 'plantIdentifiesCount' = 'aiChatsCount'
@@ -144,6 +187,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     })
 
     afterEach(async () => {
+      failNextRelease = false
       vi.useRealTimers()
       await runtime.dispose()
     })
@@ -265,5 +309,97 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'units still charged to a turn the shutdown cut off'
       ).toEqual([0])
     }, 60_000)
+
+    it('killMidTurn: a unit reserved by a process that died is refunded by the sweep', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(Date.UTC(2026, 0, 15, 12, 0))
+
+      await runtime.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* SubscriptionRepository
+          yield* repo.reserveUsage(userId, 'aiChats', limit)
+          yield* sweepUsageReservations
+        })
+      )
+      expect(
+        await unitsByMonth(),
+        'units held by a turn that may still be running'
+      ).toEqual([1])
+
+      pastTheSweepBound()
+      await runtime.runPromise(sweepUsageReservations)
+
+      expect(
+        await unitsByMonth(),
+        'units still counted for a turn no process is running'
+      ).toEqual([0])
+      expect(await reservationStates()).toEqual(['refunded'])
+    })
+
+    it('lostRefund: a refund that failed is made by the sweep', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(Date.UTC(2026, 0, 15, 12, 0))
+      failNextRelease = true
+
+      const billing = await runtime.runPromise(
+        Effect.flatMap(send(Effect.fail(new ModelFailed())), ({ settled }) =>
+          Fiber.join(settled)
+        )
+      )
+      expect(billing).toBe('refund')
+      expect(
+        await unitsByMonth(),
+        'units left by the refund that failed'
+      ).toEqual([1])
+
+      pastTheSweepBound()
+      await runtime.runPromise(sweepUsageReservations)
+
+      expect(
+        await unitsByMonth(),
+        'units still counted for a turn that gave no reply'
+      ).toEqual([0])
+    })
+
+    it('slowTurn: a sweep refund and the late charge of the same turn never both apply', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(Date.UTC(2026, 0, 15, 12, 0))
+      const slowTurns = 5
+
+      await runtime.runPromise(
+        Effect.gen(function* () {
+          const modelReplies = yield* Deferred.make<void>()
+          const turns = yield* Effect.all(
+            Arr.makeBy(slowTurns, () => send(Deferred.await(modelReplies))),
+            { concurrency: 'unbounded' }
+          )
+          yield* Effect.sync(pastTheSweepBound)
+          yield* Effect.all(
+            [
+              sweepUsageReservations,
+              Deferred.succeed(modelReplies, undefined).pipe(
+                Effect.andThen(
+                  Effect.forEach(turns, ({ settled }) => Fiber.join(settled), {
+                    concurrency: 'unbounded',
+                  })
+                )
+              ),
+            ],
+            { concurrency: 'unbounded' }
+          )
+        })
+      )
+
+      const states = await reservationStates()
+      expect(states).toHaveLength(slowTurns)
+      expect(
+        Arr.filter(states, (state) => state === 'reserved'),
+        'reservations neither charged nor refunded'
+      ).toEqual([])
+      expect(
+        await unitsByMonth(),
+        'units counted, against the reservations that were charged'
+      ).toEqual([Arr.filter(states, (state) => state === 'charged').length])
+    })
   }
 )

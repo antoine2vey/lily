@@ -1,5 +1,6 @@
 import { pinAccounts } from '@lily/api/kernel/locks'
 import type { Transaction } from '@lily/api/kernel/transact'
+import { expectWritten } from '@lily/api/kernel/written'
 import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -7,6 +8,7 @@ import {
   subscriptionEvents,
   subscriptionTiers,
   subscriptionUsage,
+  usageReservations,
   userSubscriptions,
   users,
 } from '@lily/db/schema'
@@ -21,10 +23,22 @@ import {
   type TierConfig,
   type UsageField,
 } from '@lily/shared'
-import { and, count, desc, eq, inArray, isNotNull, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  isNotNull,
+  lt,
+  ne,
+  sql,
+} from 'drizzle-orm'
 import {
   Array,
   Context,
+  Data,
   Effect,
   Layer,
   Match,
@@ -32,16 +46,24 @@ import {
   pipe,
   Schema,
 } from 'effect'
+import * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 
-export const UsageId = Schema.String.pipe(Schema.brand('UsageId'))
-export type UsageId = typeof UsageId.Type
+export const ReservationId = Schema.String.pipe(Schema.brand('ReservationId'))
+export type ReservationId = typeof ReservationId.Type
 
-export interface ReservedUsage
-  extends Omit<typeof subscriptionUsage.$inferSelect, 'id'> {
-  readonly id: UsageId
+// Rolls back the unit a refund gave back when a charge, or another refund,
+// took the reservation between the refund's read and its move.
+class ReservationSettledMeanwhile extends Data.TaggedError(
+  'ReservationSettledMeanwhile'
+) {}
+
+/** The usage row after the unit was counted, and the reservation holding it. */
+export interface ReservedUsage {
+  readonly reservationId: ReservationId
+  readonly usage: typeof subscriptionUsage.$inferSelect
 }
 
 export interface CreateSubscriptionData {
@@ -124,9 +146,9 @@ export interface ISubscriptionRepository {
   ) => Effect.Effect<typeof subscriptionUsage.$inferSelect | null, SqlError>
 
   /**
-   * Atomically takes one unit of `field` for the current month. Returns the
-   * charged row, or `null` when `limit` is already reached. A `null` limit
-   * never refuses.
+   * Atomically takes one unit of `field` for the current month and records
+   * it as a `reserved` reservation, in one transaction. Returns `null` when
+   * `limit` is already reached. A `null` limit never refuses.
    */
   readonly reserveUsage: (
     userId: string,
@@ -135,13 +157,35 @@ export interface ISubscriptionRepository {
   ) => Effect.Effect<ReservedUsage | null, SqlError>
 
   /**
-   * Gives back one unit of `field` on the row `reserveUsage` charged, even
-   * after the month has rolled over; never goes below zero.
+   * Moves a `reserved` reservation to `refunded` and gives its unit back to
+   * the row it was counted on, in one transaction, even after the month has
+   * rolled over. Answers `false` and changes nothing when the reservation
+   * already left `reserved`, so a second refund never takes another unit.
    */
   readonly releaseUsage: (
-    usageId: UsageId,
-    field: UsageField
-  ) => Effect.Effect<void, SqlError>
+    reservationId: ReservationId
+  ) => Effect.Effect<boolean, SqlError>
+
+  /**
+   * Moves a `reserved` reservation to `charged`, which keeps its unit
+   * counted. Answers `false` when it already left `reserved`.
+   */
+  readonly chargeUsage: (
+    reservationId: ReservationId
+  ) => Effect.Effect<boolean, SqlError>
+
+  /** The reservations still `reserved` that were taken before `before`. */
+  readonly findReservedBefore: (
+    before: Date
+  ) => Effect.Effect<ReadonlyArray<ReservationId>, SqlError>
+
+  /**
+   * Deletes the settled reservations of every period that ended before
+   * `closedBefore`. Returns how many it deleted.
+   */
+  readonly deleteSettledReservations: (
+    closedBefore: Date
+  ) => Effect.Effect<number, SqlError>
 
   readonly findGiftEvents: (params: {
     page: number
@@ -178,6 +222,7 @@ export const SubscriptionRepositoryLive = Layer.effect(
   SubscriptionRepository,
   Effect.gen(function* () {
     const db = yield* PgDrizzle.PgDrizzle
+    const client = yield* SqlClient.SqlClient
 
     const getMonthBoundaries = () => ({
       periodStart: startOfMonthAsDate(),
@@ -201,6 +246,26 @@ export const SubscriptionRepositoryLive = Layer.effect(
         })),
         Match.exhaustive
       )
+
+    // The WHERE on `reserved` is re-evaluated on the locked row, so of a
+    // refund and a charge racing for one reservation exactly one gets it.
+    const leaveReserved = (
+      reservationId: ReservationId,
+      state: 'charged' | 'refunded'
+    ) =>
+      db
+        .update(usageReservations)
+        .set({ state, settledAt: nowAsDate() })
+        .where(
+          and(
+            eq(usageReservations.id, reservationId),
+            eq(usageReservations.state, 'reserved')
+          )
+        )
+        .returning({
+          usageId: usageReservations.usageId,
+          field: usageReservations.field,
+        })
 
     return {
       findByUserId: Effect.fn('SubscriptionRepository.findByUserId')(function* (
@@ -473,29 +538,113 @@ export const SubscriptionRepositoryLive = Layer.effect(
             )
           )
           .returning()
+        if (!usage) return null
 
-        return pipe(
-          Option.fromNullishOr(usage),
-          Option.map(
-            (row): ReservedUsage => ({ ...row, id: UsageId.make(row.id) })
-          ),
-          Option.getOrNull
-        )
-      }),
+        const reservationId = ReservationId.make(crypto.randomUUID())
+        yield* db
+          .insert(usageReservations)
+          .values({
+            id: reservationId,
+            usageId: usage.id,
+            field,
+            createdAt: nowAsDate(),
+          })
+          .returning({ id: usageReservations.id })
+          .pipe(
+            Effect.flatMap(
+              expectWritten(usageReservations, { _tag: 'ReserveUsage' })
+            )
+          )
+
+        return { reservationId, usage } satisfies ReservedUsage
+      }, client.withTransaction),
 
       releaseUsage: Effect.fn('SubscriptionRepository.releaseUsage')(function* (
-        usageId: UsageId,
-        field: UsageField
+        reservationId: ReservationId
       ) {
-        const { column, columnName } = usageColumn(field)
+        const [reservation] = yield* db
+          .select({
+            usageId: usageReservations.usageId,
+            field: usageReservations.field,
+          })
+          .from(usageReservations)
+          .where(
+            and(
+              eq(usageReservations.id, reservationId),
+              eq(usageReservations.state, 'reserved')
+            )
+          )
+        if (!reservation) return false
 
-        yield* db
+        // The usage row is written first, the order reserveUsage and the
+        // cascade of an account deletion take it in, and written once: a
+        // second update of a row this transaction already wrote checks its
+        // foreign key to `users` again and waits for the deletion. Either
+        // other order deadlocks with a deletion of the account.
+        const { column, columnName } = usageColumn(reservation.field)
+        return yield* db
           .update(subscriptionUsage)
           .set({
             [columnName]: sql`GREATEST(${column} - 1, 0)`,
             updatedAt: nowAsDate(),
           })
-          .where(eq(subscriptionUsage.id, usageId))
+          .where(eq(subscriptionUsage.id, reservation.usageId))
+          .pipe(
+            Effect.andThen(leaveReserved(reservationId, 'refunded')),
+            Effect.filterOrFail(
+              Array.isArrayNonEmpty,
+              () => new ReservationSettledMeanwhile()
+            ),
+            Effect.as(true),
+            client.withTransaction,
+            Effect.catchTag('ReservationSettledMeanwhile', () =>
+              Effect.succeed(false)
+            )
+          )
+      }),
+
+      chargeUsage: Effect.fn('SubscriptionRepository.chargeUsage')(function* (
+        reservationId: ReservationId
+      ) {
+        const charged = yield* leaveReserved(reservationId, 'charged')
+        return Array.isArrayNonEmpty(charged)
+      }),
+
+      findReservedBefore: Effect.fn(
+        'SubscriptionRepository.findReservedBefore'
+      )(function* (before: Date) {
+        const rows = yield* db
+          .select({ id: usageReservations.id })
+          .from(usageReservations)
+          .where(
+            and(
+              eq(usageReservations.state, 'reserved'),
+              lt(usageReservations.createdAt, before)
+            )
+          )
+          .orderBy(asc(usageReservations.createdAt))
+        return Array.map(rows, (row) => ReservationId.make(row.id))
+      }),
+
+      deleteSettledReservations: Effect.fn(
+        'SubscriptionRepository.deleteSettledReservations'
+      )(function* (closedBefore: Date) {
+        const deleted = yield* db
+          .delete(usageReservations)
+          .where(
+            and(
+              ne(usageReservations.state, 'reserved'),
+              inArray(
+                usageReservations.usageId,
+                db
+                  .select({ id: subscriptionUsage.id })
+                  .from(subscriptionUsage)
+                  .where(lt(subscriptionUsage.periodEnd, closedBefore))
+              )
+            )
+          )
+          .returning({ id: usageReservations.id })
+        return deleted.length
       }),
 
       findGiftEvents: Effect.fn('SubscriptionRepository.findGiftEvents')(

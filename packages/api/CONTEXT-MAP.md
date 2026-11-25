@@ -137,7 +137,7 @@ One row per file in `src/repositories/`. "Tables written" comes from the `.inser
 | `refresh-token` | Identity & Access | `refreshTokens` | none (`auth`, `internal`, `user`) | |
 | `room` | Care (inferred) | `rooms` | Admin r | the Canopy store also writes the owner columns |
 | `scan` | Care | `plantScans` | none | |
-| `subscription` | Billing | `userSubscriptions`, `subscriptionEvents`, `subscriptionUsage`, `revenuecatWebhookEvents` | Admin W (`giftSubscription` and `revokeGiftSubscription` in `src/services/admin/endpoints/`), Reminders r (the plan caps in `src/services/overdue-scheduler/scheduler.ts`) | **MULTI** |
+| `subscription` | Billing | `userSubscriptions`, `subscriptionEvents`, `subscriptionUsage`, `usageReservations`, `revenuecatWebhookEvents` | Admin W (`giftSubscription` and `revokeGiftSubscription` in `src/services/admin/endpoints/`), Reminders r (the plan caps in `src/services/overdue-scheduler/scheduler.ts`) | **MULTI** |
 | `user` | Identity & Access | `users` | Absence W (the vacation columns, written by `src/contexts/absence/store.ts` without the repository). Admin W (`updateUser`, `updateRole` and `updateStatus` in `src/services/admin/endpoints/`, and `deleteUser` through `purgeAccount`). r from almost every context. | **MULTI** |
 | `weather` | Weather | `weatherSnapshots` | Care r (`src/contexts/care/weather.ts`) | |
 

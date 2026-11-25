@@ -200,9 +200,9 @@ export const UsageTrackerLive = Layer.effect(
         ? null
         : (yield* resolveTierConfig(subRepo, userId))[meta.limitKey]
 
-      const usage = yield* subRepo.reserveUsage(userId, field, limit)
+      const reserved = yield* subRepo.reserveUsage(userId, field, limit)
 
-      if (usage === null) {
+      if (reserved === null) {
         return yield* pipe(
           Option.fromNullishOr(limit),
           Option.match({
@@ -221,22 +221,49 @@ export const UsageTrackerLive = Layer.effect(
 
       if (limit !== null) {
         yield* Effect.forkDetach(
-          checkApproachingLimit(userId, field, usage, limit)
+          checkApproachingLimit(userId, field, reserved.usage, limit)
         )
       }
 
-      return usage
+      return reserved
     })
 
-    const refund = (usage: ReservedUsage, field: UsageField) =>
-      subRepo.releaseUsage(usage.id, field).pipe(
-        Effect.catchTag('SqlError', (error) =>
-          Effect.logError('Failed to release usage reservation', {
-            userId: usage.userId,
-            field,
+    // A move that fails leaves the reservation `reserved`, and the sweep of
+    // reservation-sweep.ts refunds it.
+    const leftToSweep =
+      (move: 'refund' | 'charge', reserved: ReservedUsage) =>
+      (error: SqlError) =>
+        Effect.logError(
+          `Failed to ${move} a usage reservation, left to the sweep`,
+          {
+            userId: reserved.usage.userId,
+            reservationId: reserved.reservationId,
             error: String(error),
-          })
+          }
         )
+
+    const refund = (reserved: ReservedUsage) =>
+      subRepo
+        .releaseUsage(reserved.reservationId)
+        .pipe(
+          Effect.asVoid,
+          Effect.catchTag('SqlError', leftToSweep('refund', reserved))
+        )
+
+    const charge = (reserved: ReservedUsage) =>
+      subRepo.chargeUsage(reserved.reservationId).pipe(
+        Effect.flatMap((charged) =>
+          charged
+            ? Effect.void
+            : Effect.logWarning(
+                'Usage reservation was refunded before its work ended',
+                {
+                  userId: reserved.usage.userId,
+                  reservationId: reserved.reservationId,
+                }
+              )
+        ),
+        Effect.catchTag('SqlError', leftToSweep('charge', reserved))
       )
 
     const withReservation = <A, E, R>(
@@ -247,8 +274,8 @@ export const UsageTrackerLive = Layer.effect(
       Effect.acquireUseRelease(
         reserve(userId, field),
         () => body,
-        (usage, exit) =>
-          Exit.isSuccess(exit) ? Effect.void : refund(usage, field)
+        (reserved, exit) =>
+          Exit.isSuccess(exit) ? charge(reserved) : refund(reserved)
       )
 
     const withDetachedReservation = <A, E, R, W, WE, RW>(
@@ -258,9 +285,9 @@ export const UsageTrackerLive = Layer.effect(
     ) =>
       Effect.uninterruptibleMask((restore) =>
         Effect.gen(function* () {
-          const usage = yield* reserve(userId, field)
+          const reserved = yield* reserve(userId, field)
           const started = yield* restore(turn.start).pipe(
-            Effect.onError(() => refund(usage, field))
+            Effect.onError(() => refund(reserved))
           )
           const context = yield* Effect.context<RW>()
           const entered = yield* Ref.make(false)
@@ -278,7 +305,7 @@ export const UsageTrackerLive = Layer.effect(
                     field,
                   }
                 )
-                yield* refund(usage, field)
+                yield* refund(reserved)
                 return 'refund' as const
               }
               const billing = yield* turn.bill(exit).pipe(
@@ -287,27 +314,23 @@ export const UsageTrackerLive = Layer.effect(
                     userId,
                     field,
                     cause: Cause.pretty(cause),
-                  }).pipe(Effect.andThen(refund(usage, field)))
+                  }).pipe(Effect.andThen(refund(reserved)))
                 )
               )
-              if (billing === 'refund') {
-                yield* refund(usage, field)
-              }
+              yield* billing === 'charge' ? charge(reserved) : refund(reserved)
               return billing
             })
           )
 
           const settled = yield* turn
             .detach(Effect.provide(settle, context))
-            .pipe(Effect.onError(() => refund(usage, field)))
+            .pipe(Effect.onError(() => refund(reserved)))
           // A fiber that ends without entering settle, as one a closed
           // FiberSet hands back does, never refunds itself.
           yield* Effect.forkDetach(
             Fiber.await(settled).pipe(
               Effect.andThen(Ref.get(entered)),
-              Effect.flatMap((ran) =>
-                ran ? Effect.void : refund(usage, field)
-              )
+              Effect.flatMap((ran) => (ran ? Effect.void : refund(reserved)))
             ),
             { startImmediately: true }
           )
