@@ -91,6 +91,8 @@ jobs:
         run: bun packages/web/scripts/check-well-known.ts
       - name: Run Turbo pipeline
         run: bun x turbo run lint tsc test build
+      - name: Check no tsc task writes a file another task reads
+        run: bash scripts/check-tsc-outputs.sh
       - name: Check bundle sizes
         run: bash scripts/check-bundle-sizes.sh
       - name: Check prerendered web pages hydrate cleanly
