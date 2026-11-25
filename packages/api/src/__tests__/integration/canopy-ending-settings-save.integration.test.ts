@@ -1,7 +1,11 @@
-import { settled } from '@lily/api/__tests__/integration/canopy-layers'
+import {
+  leaveForDeletion,
+  settled,
+} from '@lily/api/__tests__/integration/canopy-layers'
 import {
   deadlocks,
   sessionsWaitingForALock,
+  waitsForALock,
 } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockEventBus } from '@lily/api/__tests__/mocks/event-bus'
 import { createMockLimitChecker } from '@lily/api/__tests__/mocks/limit-checker'
@@ -26,6 +30,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { Rating, ZoneName } from '@lily/shared'
+import type { UserSettingsUpdateRequest } from '@lily/shared/user'
 import { and, eq, inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Cause, Effect, Exit, Layer, References } from 'effect'
@@ -149,11 +154,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return { ...ids, canopyId: canopy.id }
     }
 
-    const saveTipsOffAndRename = (userId: string, name: string) =>
+    const save = (userId: string, request: UserSettingsUpdateRequest) =>
       endingOf(
-        settled(
-          updateUserSettings({ name, notifications: { tips: false } })
-        ).pipe(
+        settled(updateUserSettings(request)).pipe(
           Effect.provide(
             Layer.mergeAll(
               createMockCurrentUser({ id: userId }),
@@ -187,7 +190,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           `CREATE TRIGGER ${pause} AFTER UPDATE ON users FOR EACH ROW WHEN (NEW.id = '${userId}') EXECUTE FUNCTION ${pause}()`
         )
 
-        const saving = saveTipsOffAndRename(userId, name)
+        const saving = save(userId, {
+          name,
+          notifications: { tips: false },
+        })
         const paused = await sessionsWaitingForALock(pool, 1)
         const ended = new AbortController()
         const ends = endingOf(
@@ -292,5 +298,40 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       },
       30_000
     )
+
+    it('lets a member rename themselves while the deletion of another member is still running', async () => {
+      const ids = await aCanopyRemindingOfAPhoto('owner')
+      const deleting = Promise.withResolvers<void>()
+      const deleted = Promise.withResolvers<void>()
+
+      const purging = endingOf(
+        settled(
+          leaveForDeletion(ids.first)(
+            Effect.promise(() => {
+              deleting.resolve()
+              return deleted.promise
+            })
+          )
+        ).pipe(Effect.provide(AppLive))
+      )
+      await deleting.promise
+      const renaming = save(ids.second, {
+        name: `after_${crypto.randomUUID().slice(0, 8)}`,
+      })
+      const waited = await waitsForALock(pool, renaming)
+      deleted.resolve()
+
+      expect({
+        waited,
+        renamed: await renaming,
+        purged: await purging,
+        members: await membersOf(ids.canopyId),
+      }).toEqual({
+        waited: false,
+        renamed: 'Success',
+        purged: 'Success',
+        members: [ids.owner, ids.second],
+      })
+    }, 30_000)
   }
 )
