@@ -2128,6 +2128,8 @@ describe('Notification Worker', () => {
       lastConfirmedAt: null,
       lastFailedAt: null,
       lastStartSentAt: null,
+      startActivityId: null,
+      startConfirmedAt: null,
       updatedAt: new Date(),
       ...overrides,
     })
@@ -2170,11 +2172,25 @@ describe('Notification Worker', () => {
         startToken({
           lastStartSentAt: new Date(Date.now() - 2 * 3_600_000),
           lastConfirmedAt: new Date(Date.now() - 3_600_000),
+          startActivityId: 'start-1',
+          startConfirmedAt: new Date(Date.now() - 3_600_000),
         }),
         1
       )
       const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
       expect(starts).toHaveLength(1)
+    })
+
+    it('ignores a post that did not name the last start', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({
+          lastStartSentAt: new Date(Date.now() - 2 * 3_600_000),
+          lastConfirmedAt: new Date(Date.now() - 3_600_000),
+          startActivityId: 'start-1',
+        }),
+        1
+      )
+      expect(laMessages).toHaveLength(0)
     })
 
     it('ignores a confirmation that predates the last start', async () => {
@@ -2188,9 +2204,17 @@ describe('Notification Worker', () => {
       expect(laMessages).toHaveLength(0)
     })
 
+    it('skips a start 12h later, while iOS may still show the first card', async () => {
+      const laMessages = await runWithStartToken(
+        startToken({ lastStartSentAt: new Date(Date.now() - 12 * 3_600_000) }),
+        1
+      )
+      expect(laMessages).toHaveLength(0)
+    })
+
     it('starts again once the cooldown has elapsed', async () => {
       const laMessages = await runWithStartToken(
-        startToken({ lastStartSentAt: new Date(Date.now() - 11 * 3_600_000) }),
+        startToken({ lastStartSentAt: new Date(Date.now() - 14 * 3_600_000) }),
         1
       )
       const starts = laMessages.filter((m) => m._tag === 'LiveActivityStart')
@@ -2215,6 +2239,8 @@ describe('Notification Worker', () => {
       lastConfirmedAt: null,
       lastFailedAt: null,
       lastStartSentAt: null,
+      startActivityId: null,
+      startConfirmedAt: null,
       updatedAt: new Date(),
       ...overrides,
     })
@@ -3164,6 +3190,8 @@ describe('Notification Worker', () => {
               lastConfirmedAt: null,
               lastFailedAt: null,
               lastStartSentAt: null,
+              startActivityId: null,
+              startConfirmedAt: null,
               updatedAt: new Date(),
             },
           ],

@@ -11,15 +11,26 @@
 //   replaces, so a retry is a later run of one of the two.
 // - APNs rejects an update token exactly when its card left the device.
 // - A PushConfigError behaves like a PushSendError, so Failed stands for both.
+// - An End push APNs accepts reaches the device.
+// - The app posts a card's update token with the activity id the start push
+//   carried in its attributes. A build that posts none confirms no start.
 // - The device keeps its device token row. Logging out deletes that row and
 //   both stamps with it.
 module la_start {
-  // "none" is 258941ed, "cooldown15" is c474de2e, "unresolved10h" is 0a24dd8a.
+  // "none" is 258941ed, "cooldown15" is c474de2e, "unresolved" is 0a24dd8a.
   const GUARD: str
+  // LA_START_COOLDOWN in live-activity/cards.ts. 600 is the shape before
+  // #367: see la_cooldown10h.
+  const COOLDOWN: int
+  // "startId" counts a post as the confirmation of the latest start only when
+  // it carries that start's activity id. "anyPost" is the shape before #367,
+  // where any post at or after the start's stamp confirmed it: see
+  // la_confirm_any_post.
+  const CONFIRM_BY: str
   // false reads the row, decides in memory, then stamps: the shape before #82.
   const ATOMIC: bool
-  // The guard presumes a card nobody ended is gone when the cooldown lapses.
-  // iOS can keep one for 12h: see la_hard_cap_12h.
+  // How long a card stays on the device after its start was sent. iOS keeps
+  // one up to 12h, and APNs may hold the start 1h first: see la_hard_cap_12h.
   const CARD_TTL: int
   // false keeps every registration out of a running batch. A batch runs its
   // reads, claim and send in milliseconds, and a device answers a start in
@@ -31,11 +42,14 @@ module la_start {
   const LOST_POSTS: bool
   // false delivers every End push: see la_end_delivered.
   const END_PUSH_LOST: bool
+  // true ends the row whether or not the End push reaches the card: the shape
+  // before #367, see la_end_first. la_lost_post sets it to stand for an End
+  // that APNs accepts and never delivers.
+  const END_FIRST: bool
   // false is createActivity before it gave each activity its own started_at:
   // see la_stale_started_at.
   const STARTED_AT_PER_ACTIVITY: bool
 
-  pure val LA_START_COOLDOWN = 600
   pure val SOFT_TTL = 600
   pure val UNCONFIRMED_TTL = 20160
   pure val CONFIRMED_TTL = 43200
@@ -48,6 +62,8 @@ module la_start {
     sawStartToken: bool,
     sawStartSentAt: Stamp,
     sawConfirmedAt: Stamp,
+    sawStartConfirmed: bool,
+    startId: int,
   }
   type Card = { id: int, sentAt: int, confirmed: bool }
   type Send = Delivered | Failed | PushTokenInvalidated
@@ -63,6 +79,8 @@ module la_start {
     startedAt: int,
     lastStartSentAt: Stamp,
     lastConfirmedAt: Stamp,
+    startActivity: int,
+    startConfirmed: bool,
   }
   var updateRow: { status: UpdateStatus, activity: int, startedAt: int }
   var cards: Set[Card]
@@ -70,13 +88,16 @@ module la_start {
   var writes: int
   var workers: str -> Worker
 
-  pure def unresolved(sentAt: Stamp, confirmedAt: Stamp, t: int): bool =
+  pure def unresolved(
+    sentAt: Stamp, confirmedAt: Stamp, startConfirmed: bool, t: int
+  ): bool =
     if (GUARD == "none") false
     else if (GUARD == "cooldown15") sentAt != NEVER and t - sentAt.minute < 15
     else and {
       sentAt != NEVER,
-      t - sentAt.minute <= LA_START_COOLDOWN,
-      confirmedAt.order < sentAt.order,
+      t - sentAt.minute <= COOLDOWN,
+      if (CONFIRM_BY == "startId") not(startConfirmed)
+      else confirmedAt.order < sentAt.order,
     }
 
   def stamp: Stamp = { minute: now, order: writes }
@@ -87,6 +108,7 @@ module la_start {
     now' = 0,
     startRow' = {
       active: true, startedAt: 0, lastStartSentAt: NEVER, lastConfirmedAt: NEVER,
+      startActivity: NONE, startConfirmed: false,
     },
     updateRow' = { status: NoRow, activity: NONE, startedAt: NONE },
     cards' = Set(),
@@ -94,7 +116,7 @@ module la_start {
     writes' = 0,
     workers' = WORKERS.mapBy(_ => {
       pc: Idle, sawActivity: NONE, sawStartToken: false, sawStartSentAt: NEVER,
-      sawConfirmedAt: NEVER,
+      sawConfirmedAt: NEVER, sawStartConfirmed: false, startId: NONE,
     }),
   }
 
@@ -120,6 +142,8 @@ module la_start {
       sawStartToken: startRow.active,
       sawStartSentAt: startRow.lastStartSentAt,
       sawConfirmedAt: startRow.lastConfirmedAt,
+      sawStartConfirmed: startRow.startConfirmed,
+      startId: NONE,
     }),
     now' = now, startRow' = startRow, updateRow' = updateRow, cards' = cards,
     nextCard' = nextCard, writes' = writes,
@@ -147,22 +171,34 @@ module la_start {
   }
 
   // activity-push-token.repository.ts claimStartTokens: one conditional
-  // UPDATE checks the guard and stamps the row.
+  // UPDATE checks the guard and stamps the row with the start's activity id.
   action claimStartTokens(w: str): bool = {
     val me = workers.get(w)
     val blocked =
       if (ATOMIC)
         not(startRow.active)
-          or unresolved(startRow.lastStartSentAt, startRow.lastConfirmedAt, now)
-      else unresolved(me.sawStartSentAt, me.sawConfirmedAt, now)
+          or unresolved(
+            startRow.lastStartSentAt, startRow.lastConfirmedAt,
+            startRow.startConfirmed, now
+          )
+      else
+        unresolved(me.sawStartSentAt, me.sawConfirmedAt, me.sawStartConfirmed, now)
     all {
       me.pc == StartPath,
-      workers' = workers.set(w, { ...me, pc: if (blocked) Idle else Claimed }),
+      workers' = workers.set(w, {
+        ...me,
+        pc: if (blocked) Idle else Claimed,
+        startId: if (blocked) NONE else nextCard,
+      }),
       startRow' =
         if (blocked or GUARD == "none") startRow
-        else { ...startRow, lastStartSentAt: stamp },
+        else {
+          ...startRow,
+          lastStartSentAt: stamp, startActivity: nextCard, startConfirmed: false,
+        },
+      nextCard' = if (blocked) nextCard else nextCard + 1,
       writes' = writes + 1,
-      now' = now, updateRow' = updateRow, cards' = cards, nextCard' = nextCard,
+      now' = now, updateRow' = updateRow, cards' = cards,
     }
   }
 
@@ -175,9 +211,9 @@ module la_start {
       workers' = workers.set(w, { ...me, pc: Idle }),
       cards' =
         if (outcome == Delivered)
-          cards.union(Set({ id: nextCard, sentAt: now, confirmed: false }))
+          cards.union(Set({ id: me.startId, sentAt: now, confirmed: false }))
         else cards,
-      nextCard' = nextCard + 1, writes' = writes,
+      nextCard' = nextCard, writes' = writes,
       startRow' =
         if (outcome == PushTokenInvalidated) { ...startRow, active: false }
         else startRow,
@@ -197,7 +233,8 @@ module la_start {
   // register-activity-token.ts registerActivityToken: the app runs with an
   // unlocked keychain and posts a card's update token. The device has one
   // update row, and a new activity replaces the one in it. A locked phone
-  // never gets here.
+  // never gets here. markStartTokenConfirmed confirms the latest start only
+  // when the post carries its activity id.
   action registerActivityToken(card: Card, alone: bool): bool = all {
     cards.contains(card),
     CONFIRM_MID_BATCH or not(midBatch),
@@ -211,7 +248,11 @@ module la_start {
         else if (STARTED_AT_PER_ACTIVITY and updateRow.activity != card.id) now
         else updateRow.startedAt,
     },
-    startRow' = { ...startRow, lastConfirmedAt: stamp },
+    startRow' = {
+      ...startRow,
+      lastConfirmedAt: stamp,
+      startConfirmed: startRow.startConfirmed or card.id == startRow.startActivity,
+    },
     writes' = writes + 1,
     now' = now, nextCard' = nextCard, workers' = workers,
   }
@@ -237,11 +278,13 @@ module la_start {
   }
 
   // live-activity/cards.ts endCards: an empty backlog ends the cards, whichever
-  // caller finds it. The row ends first, and a lost End push leaves the card
-  // on the device.
+  // caller finds it. The row ends once APNs takes the End push, so a lost one
+  // leaves the row active and the next batch updates the card.
   action endCards(endDelivered: bool): bool = all {
     updateRow.status == Active,
-    updateRow' = { ...updateRow, status: Ended },
+    updateRow' =
+      if (endDelivered or END_FIRST) { ...updateRow, status: Ended }
+      else updateRow,
     cards' =
       if (endDelivered) cards.filter(c => c.id != updateRow.activity)
       else cards,
@@ -378,13 +421,46 @@ module la_start {
       )
       .then(endCards(false))
       .then(deliver("reminder"))
+
+  // #367 gap 1: the reminder after a digest the device never confirmed lands
+  // past the soft TTL, while the digest's card can still be on screen.
+  run digestThenLateReminder =
+    init.then(deliver("digest")).then(advanceTime(601)).then(deliver("reminder"))
+
+  // #367 gap 2: the soft TTL expires a confirmed card's row while iOS still
+  // shows the card. The app re-posts that card's token between the digest's
+  // claim and its send, and the sweep expires the row again.
+  run confirmMidBatch =
+    init
+      .then(deliver("digest"))
+      .then(nondet card = cards.oneOf() registerActivityToken(card, false))
+      .then(advanceTime(601))
+      .then(expireStaleActivities)
+      .then(findActivities("digest"))
+      .then(claimStartTokens("digest"))
+      .then(
+        nondet old = cards.filter(c => c.id == 0).oneOf()
+        registerActivityToken(old, false)
+      )
+      .then(expireStaleActivities)
+      .then(deliver("reminder"))
+      .then(sendStarts("digest", Delivered))
+
+  // #367 gap 3: the End push of a confirmed card is lost, then a reminder.
+  run lostEnd =
+    init
+      .then(deliver("digest"))
+      .then(nondet card = cards.oneOf() registerActivityToken(card, false))
+      .then(endCards(false))
+      .then(deliver("reminder"))
 }
 
 module la_current {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -393,13 +469,15 @@ module la_current {
   run confirmedLongAgoTest =
     confirmedLongAgo.expect(cards == Set({ id: 1, sentAt: 602, confirmed: false }))
   run secondActivityTest = secondActivity.expect(oneCardOnScreen)
+  run lostEndTest = lostEnd.expect(cards.size() == 1)
 }
 
 module la_no_guard {
   import la_start(
-    GUARD = "none", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "none", COOLDOWN = 600, CONFIRM_BY = "anyPost",
+    ATOMIC = false, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 2)
@@ -407,9 +485,10 @@ module la_no_guard {
 
 module la_cooldown15 {
   import la_start(
-    GUARD = "cooldown15", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "cooldown15", COOLDOWN = 600, CONFIRM_BY = "anyPost",
+    ATOMIC = false, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 2)
@@ -417,9 +496,10 @@ module la_cooldown15 {
 
 module la_check_then_send {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = false, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 600, CONFIRM_BY = "anyPost",
+    ATOMIC = false, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
@@ -427,39 +507,90 @@ module la_check_then_send {
 
 module la_hard_cap_12h {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 720,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 780, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
+  run digestThenLateReminderTest =
+    digestThenLateReminder.expect(cards.size() == 1)
+}
+
+module la_cooldown10h {
+  import la_start(
+    GUARD = "unresolved", COOLDOWN = 600, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 780, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
+  ).*
+
+  run digestThenLateReminderTest =
+    digestThenLateReminder.expect(cards.size() == 2)
 }
 
 module la_confirm_mid_batch {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = true, LOST_POSTS = false,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 780, CONFIRM_MID_BATCH = true,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
-  run digestThenReminderTest = digestThenReminder.expect(cards.size() == 1)
+  run confirmMidBatchTest = confirmMidBatch.expect(noDuplicateCard)
+}
+
+module la_confirm_any_post {
+  import la_start(
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "anyPost",
+    ATOMIC = true, CARD_TTL = 780, CONFIRM_MID_BATCH = true,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
+  ).*
+
+  run confirmMidBatchTest = confirmMidBatch.expect(not(noDuplicateCard))
 }
 
 module la_lost_post {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = true,
-    END_PUSH_LOST = true, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = true, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
+  ).*
+
+  run lostPostTest = lostPost.expect(noDuplicateCard)
+}
+
+module la_lost_post_any_post {
+  import la_start(
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "anyPost",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = true, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run lostPostTest = lostPost.expect(not(noDuplicateCard))
 }
 
+module la_end_first {
+  import la_start(
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = true, END_FIRST = true,
+    STARTED_AT_PER_ACTIVITY = true
+  ).*
+
+  run lostEndTest = lostEnd.expect(not(oneCardOnScreen))
+}
+
 module la_end_delivered {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = false, STARTED_AT_PER_ACTIVITY = true
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = false, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = true
   ).*
 
   run secondActivityTest = secondActivity.expect(oneCardOnScreen)
@@ -467,9 +598,10 @@ module la_end_delivered {
 
 module la_stale_started_at {
   import la_start(
-    GUARD = "unresolved10h", ATOMIC = true, CARD_TTL = 600,
-    CONFIRM_MID_BATCH = false, LOST_POSTS = false,
-    END_PUSH_LOST = false, STARTED_AT_PER_ACTIVITY = false
+    GUARD = "unresolved", COOLDOWN = 780, CONFIRM_BY = "startId",
+    ATOMIC = true, CARD_TTL = 600, CONFIRM_MID_BATCH = false,
+    LOST_POSTS = false, END_PUSH_LOST = false, END_FIRST = false,
+    STARTED_AT_PER_ACTIVITY = false
   ).*
 
   run secondActivityTest = secondActivity.expect(not(oneCardOnScreen))

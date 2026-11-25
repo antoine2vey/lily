@@ -1,5 +1,10 @@
 import { CareType } from '@lily/shared'
-import { Data, Schema } from 'effect'
+import { Data, Duration, Schema } from 'effect'
+
+// How long APNs keeps trying to deliver a push-to-start. Default APNs
+// expiration of 0 means "deliver now or drop", lethal if the device is
+// briefly offline.
+export const LA_START_EXPIRATION = Duration.hours(1)
 
 // iOS interruption levels (mapped 1:1 onto APS `interruption-level`).
 // `time-sensitive` breaks through Focus modes and appears prominently on
