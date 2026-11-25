@@ -1,3 +1,4 @@
+import { transactQuietly } from '@lily/api/kernel/transact'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { assertNotStorePayer } from '@lily/api/services/admin/helpers/assert-not-store-payer'
@@ -9,8 +10,9 @@ import type {
   CannotModifySelfError,
   StorePayerProtectedError,
 } from '@lily/shared/errors/admin'
-import type { UserNotFoundError } from '@lily/shared/errors/user'
+import { UserNotFoundError } from '@lily/shared/errors/user'
 import { Effect } from 'effect'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const revokeGiftSubscription = (
@@ -21,7 +23,7 @@ export const revokeGiftSubscription = (
   | UserNotFoundError
   | CannotModifySelfError
   | StorePayerProtectedError,
-  UserRepository | SubscriptionRepository | AdminUser
+  UserRepository | SubscriptionRepository | AdminUser | SqlClient.SqlClient
 > =>
   Effect.gen(function* () {
     const { user, currentAdmin } = yield* withAdminTarget(userId)
@@ -30,19 +32,22 @@ export const revokeGiftSubscription = (
     const subRepo = yield* SubscriptionRepository
     const now = nowAsDate()
 
-    yield* Effect.all(
-      [
-        subRepo.updateByUserId(userId, {
+    yield* transactQuietly(
+      Effect.gen(function* () {
+        // Held before the first write, as in `giftSubscription`.
+        if (!(yield* subRepo.holdAccount(userId))) {
+          return yield* new UserNotFoundError()
+        }
+        yield* subRepo.updateByUserId(userId, {
           tier: 'free',
           status: 'active',
           currentPeriodStart: now,
           currentPeriodEnd: now,
-        }),
-        subRepo.logEvent(userId, 'subscription_gift_revoked', {
+        })
+        yield* subRepo.logEvent(userId, 'subscription_gift_revoked', {
           revokedBy: currentAdmin.id,
-        }),
-      ],
-      { concurrency: 'unbounded' }
+        })
+      })
     )
 
     return {

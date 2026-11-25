@@ -1,4 +1,5 @@
 import { mockAdminUser, mockUsers } from '@lily/api/__tests__/fixtures/users'
+import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
 import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import type { CreateSubscriptionData } from '@lily/api/repositories/subscription.repository'
@@ -28,6 +29,7 @@ const baseLayers = (
   opts: Parameters<typeof createMockSubscriptionRepository>[0] = {}
 ) =>
   Layer.mergeAll(
+    MockSqlClientLive,
     createMockUserRepository([...mockUsers]),
     createMockSubscriptionRepository(opts),
     mockAdminLayer

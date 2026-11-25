@@ -1,3 +1,4 @@
+import { transactQuietly } from '@lily/api/kernel/transact'
 import type { NotificationRepository } from '@lily/api/repositories/notification.repository'
 import type { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
@@ -19,9 +20,9 @@ import type {
   CannotModifySelfError,
   StorePayerProtectedError,
 } from '@lily/shared/errors/admin'
-import type { UserNotFoundError } from '@lily/shared/errors/user'
+import { UserNotFoundError } from '@lily/shared/errors/user'
 import { DateTime, Effect } from 'effect'
-import * as SqlClient from 'effect/sql/SqlClient'
+import type * as SqlClient from 'effect/sql/SqlClient'
 import type { SqlError } from 'effect/sql/SqlError'
 
 export const giftSubscription = (
@@ -50,9 +51,14 @@ export const giftSubscription = (
     const periodStart = DateTime.toDate(DateTime.nowUnsafe())
     const periodEnd = computePeriodEnd(duration)
 
-    const sql = yield* SqlClient.SqlClient
-    const notification = yield* sql.withTransaction(
+    const notification = yield* transactQuietly(
       Effect.gen(function* () {
+        // Held before the first write. A deletion of the account that starts
+        // after the row is updated holds the account and waits for that row,
+        // and the event insert would then wait for the account.
+        if (!(yield* subRepo.holdAccount(userId))) {
+          return yield* new UserNotFoundError()
+        }
         yield* subRepo.create({
           userId,
           tier: 'paid',
