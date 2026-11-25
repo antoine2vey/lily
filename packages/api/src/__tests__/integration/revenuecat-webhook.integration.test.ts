@@ -1,7 +1,7 @@
 import { createMockRevenueCatProvider } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoints/webhook/handle-revenuecat-webhook'
-import { DrizzleLive } from '@lily/db'
+import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import {
   PaymentProviderError,
@@ -30,7 +30,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const periodEnd = inDays(30)
 
     const RepoLive = SubscriptionRepositoryLive.pipe(
-      Layer.provide(DrizzleLive),
+      Layer.provideMerge(DrizzleLive),
+      Layer.provideMerge(PgLive),
       Layer.provide(
         ConfigProvider.layer(
           ConfigProvider.fromUnknown({

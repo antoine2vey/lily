@@ -2,7 +2,7 @@ import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
 import { createMockRevenueCatProvider } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoints/webhook/handle-revenuecat-webhook'
-import { DrizzleLive } from '@lily/db'
+import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import type {
   RevenueCatEventType,
@@ -26,7 +26,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     const userIds: string[] = []
 
     const RepoLive = SubscriptionRepositoryLive.pipe(
-      Layer.provide(DrizzleLive),
+      Layer.provideMerge(DrizzleLive),
+      Layer.provideMerge(PgLive),
       Layer.provide(
         ConfigProvider.layer(
           ConfigProvider.fromUnknown({
@@ -157,6 +158,29 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect((await renewal)._tag).toBe('Success')
       expect((await expiration)._tag).toBe('Success')
       expect(await statusOf(userId)).toEqual(['expired'])
+    })
+
+    it('lets another user sync while a fetch is still out', async () => {
+      const slowUser = await aUser()
+      const otherUser = await aUser()
+      const slow = heldFetch(subscriber(slowUser, inDays(30)))
+
+      const held = deliver('RENEWAL', slowUser, slow.fetch)
+      await slow.reading
+      const other = await deliver(
+        'RENEWAL',
+        otherUser,
+        Effect.sync(() => subscriber(otherUser, inDays(30)))
+      )
+      const whileHeld = {
+        other: await statusOf(otherUser),
+        slow: await statusOf(slowUser),
+      }
+      await slow.release()
+
+      expect(other._tag).toBe('Success')
+      expect(whileHeld).toEqual({ other: ['active'], slow: [] })
+      expect((await held)._tag).toBe('Success')
     })
   }
 )
