@@ -98,7 +98,7 @@ const props = (files: ReadonlyArray<string>) => {
 
 const wrap = (tscOutput: string) => {
   const site =
-    /^(?:@lily\/([\w-]+)[: ]tsc: )?(\S+?)\((\d+),(\d+)\): error TS2\d+: .*Brand<"ZoneName">/gm
+    /^(?:@lily\/([\w-]+)[: ](?:tsc|build): )?(\S+?)\((\d+),(\d+)\): error TS2\d+: .*Brand<"ZoneName">/gm
   const byFile = new Map<string, Array<[number, number]>>()
   for (const [, pkg, path, line, col] of tscOutput.matchAll(site)) {
     const file = pkg ? join(root, 'packages', pkg, path) : join(root, path)
