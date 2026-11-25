@@ -282,8 +282,10 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       // Ground truth: an `update` row arriving for a (userId, deviceTokenId)
       // pair proves the start-token for that pair successfully delivered to
       // the device. Stamp the start-row so the eviction sweep won't kill it.
-      // The post confirms the last start only when it names that start: the
-      // app re-posts every card on screen when it launches, old ones too.
+      // A post that names a start confirms the last start only when it names
+      // that one: the app re-posts every card on screen when it launches, old
+      // ones too. A build that names none confirms the last start, as before
+      // #367, so it keeps gap 2 of #367 until it updates.
       markStartTokenConfirmed: Effect.fn(
         'ActivityPushTokenRepository.markStartTokenConfirmed'
       )(function* (
@@ -296,7 +298,11 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
           .update(activityPushTokens)
           .set({
             lastConfirmedAt: now,
-            startConfirmedAt: sql`CASE WHEN ${activityPushTokens.startActivityId} = ${Option.getOrNull(startId)} THEN ${now.toISOString()}::timestamptz ELSE ${activityPushTokens.startConfirmedAt} END`,
+            startConfirmedAt: Option.match(startId, {
+              onNone: () => now,
+              onSome: (id) =>
+                sql`CASE WHEN ${activityPushTokens.startActivityId} = ${id} THEN ${now.toISOString()}::timestamptz ELSE ${activityPushTokens.startConfirmedAt} END`,
+            }),
             updatedAt: now,
           })
           .where(

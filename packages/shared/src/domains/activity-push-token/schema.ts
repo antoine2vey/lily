@@ -35,7 +35,7 @@ export type RegisterStartTokenRequest = typeof RegisterStartTokenRequest.Type
 // Client → server when ActivityKit streams an update token for a running
 // activity (sent separately because the activity itself was started via push).
 // `startId` is the activity id the push-to-start carried in its attributes.
-// Builds before #367 omit it, and their posts confirm no start.
+// Builds before #367 omit it, and their posts confirm the latest start.
 export const RegisterActivityTokenRequest = Schema.Struct({
   activityId: Schema.String,
   updateToken: Schema.String,
