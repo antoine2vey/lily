@@ -541,6 +541,44 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ).toMatchObject([{ _tag: 'LiveActivityUpdate', to: 'update-0' }])
     })
 
+    const postThenEnd = async (
+      startId: string | undefined
+    ): Promise<ReadonlyArray<LiveActivityPushMessage>> => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const activityId = startedOn(await deliverBatch(), 'start-0')
+      await asDevice(
+        registerActivityToken({
+          deviceTokenId: devices[0],
+          activityId,
+          updateToken: 'update-0',
+          startId,
+        })
+      )
+      vi.setSystemTime(Date.now() + MINUTE)
+      await asDevice(endActivity(activityId))
+      vi.setSystemTime(Date.now() + 120 * MINUTE)
+      return deliverBatch()
+    }
+
+    it('starts the reminder 2h after a card that a build sending no start id posted and ended', async () => {
+      expect(
+        count(await postThenEnd(undefined), 'LiveActivityStart', 'start-0'),
+        'push-to-start sends after the card ended'
+      ).toBe(1)
+    })
+
+    it('holds the reminder when the only post named another start', async () => {
+      expect(
+        count(
+          await postThenEnd('another-start'),
+          'LiveActivityStart',
+          'start-0'
+        ),
+        'push-to-start sends to a device that never posted the card of its start'
+      ).toBe(0)
+    })
+
     it('still expires a card 10h after it started when it posted a rotated token since', async () => {
       vi.useFakeTimers({ toFake: ['Date'] })
       await seedTokens([])

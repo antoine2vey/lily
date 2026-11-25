@@ -1213,16 +1213,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         ])
       })
 
-      it('keeps the device held when the phone posts the card of another start, or names none', async () => {
+      it('keeps the device held when the phone posts the card of another start', async () => {
         await insertStartToken()
 
         expect(await run(claimStartAs(userId, 'start-b'))).toEqual([
           deviceTokenId,
         ])
         await run(postCardOf(Option.some('start-a')))
-        await run(postCardOf(Option.none()))
 
         expect(await run(claimStart)).toEqual([])
+      })
+
+      it('frees the device when a build that sends no start id posts a card', async () => {
+        await insertStartToken()
+
+        expect(await run(claimStart)).toEqual([deviceTokenId])
+        await run(postCardOf(Option.none()))
+
+        expect(await run(claimStartAs(userId, 'start-b'))).toEqual([
+          deviceTokenId,
+        ])
       })
 
       it('frees the device again once its unconfirmed start is older than the cutoff', async () => {
