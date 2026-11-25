@@ -140,12 +140,18 @@ export class UserRepository extends Context.Service<
 >()('UserRepository') {}
 
 /**
- * `deleted_at` dates a deletion request, so it holds only while the status
- * is `pending_deletion`. A write that moves the status anywhere else clears
- * it, or the account would stay hidden from search and the social reads.
+ * `deleted_at` dates a deletion request, and the purge reads it. A move to
+ * `pending_deletion` keeps the date of a request already made and dates a new
+ * one. A move to `active` ends the request. `suspended` and `banned` keep the
+ * date, so a request an admin interrupts is still purged on time once the
+ * account is back to `pending_deletion`.
  */
 const deletedAtAfter = (status: UserStatus | undefined) =>
-  status === undefined || status === 'pending_deletion' ? undefined : null
+  status === 'active'
+    ? null
+    : status === 'pending_deletion'
+      ? sql`coalesce(${users.deletedAt}, now())`
+      : undefined
 
 export const UserRepositoryLive = Layer.effect(
   UserRepository,
