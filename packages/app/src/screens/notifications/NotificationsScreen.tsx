@@ -4,7 +4,6 @@ import {
   formatRelativeTime,
   getApiDateGroupLabel,
   parseApiDate,
-  ZoneName,
 } from '@lily/shared'
 import { Array, Match, Option, pipe, Record } from 'effect'
 import { router } from 'expo-router'
@@ -28,7 +27,10 @@ import {
   useNotifications,
 } from '@/hooks/useNotifications'
 import { NotificationsSkeleton } from '@/screens/notifications/components/NotificationsSkeleton'
-import { resolveNotificationRoute } from '@/utils/notifications'
+import {
+  getDeviceTimezone,
+  resolveNotificationRoute,
+} from '@/utils/notifications'
 
 type SectionItem =
   | { kind: 'header'; title: string }
@@ -102,9 +104,10 @@ const formatNotificationTime = (date: Date): string =>
 const groupByDate = (items: readonly Notification[]): SectionItem[] => {
   const groups = new Map<string, Notification[]>()
   const groupOrder: string[] = []
+  const timezone = getDeviceTimezone()
 
   Array.forEach(items, (item) => {
-    const label = getApiDateGroupLabel(item.createdAt, ZoneName.make('UTC'))
+    const label = getApiDateGroupLabel(item.createdAt, timezone)
     const group = groups.get(label)
     if (group) {
       group.push(item)
