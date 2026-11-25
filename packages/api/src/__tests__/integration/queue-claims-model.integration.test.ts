@@ -12,7 +12,10 @@ import { CanopyRepositoryLive } from '@lily/api/repositories/canopy.repository'
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DeadLetterRepositoryLive } from '@lily/api/repositories/dead-letter.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
-import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import {
+  DeviceTokenRepository,
+  DeviceTokenRepositoryLive,
+} from '@lily/api/repositories/device-token.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import {
   NotificationDelivery,
@@ -20,11 +23,13 @@ import {
 } from '@lily/api/repositories/notification-delivery.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { Alerter } from '@lily/api/services/alerting'
 import { makeRedisMessageQueue } from '@lily/api/services/message-queue/redis.provider'
 import {
   type IMessageQueue,
   MessageQueue,
 } from '@lily/api/services/message-queue/service'
+import { QueueOperationError } from '@lily/api/services/message-queue/types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import {
   consumeNext,
@@ -78,23 +83,39 @@ const DatabaseLive = Layer.mergeAll(
 
 const quiet = Effect.provideService(References.MinimumLogLevel, 'None')
 
-const CannotReadTheDatabase = Layer.effect(
-  NotificationDelivery,
-  Effect.map(NotificationDelivery, (repository) =>
-    NotificationDelivery.of({
-      ...repository,
-      claimForDelivery: () =>
-        Effect.fail(
-          new SqlError({
-            reason: new UnknownError({
-              cause: new Error('database unreachable'),
-              message: 'database unreachable',
-            }),
-          })
-        ),
-    })
-  )
-).pipe(Layer.provide(DatabaseLive))
+const databaseUnreachable = new SqlError({
+  reason: new UnknownError({
+    cause: new Error('database unreachable'),
+    message: 'database unreachable',
+  }),
+})
+
+const cannotReadTheDatabaseAfter = (wait: Effect.Effect<void>) =>
+  Layer.effect(
+    NotificationDelivery,
+    Effect.map(NotificationDelivery, (repository) =>
+      NotificationDelivery.of({
+        ...repository,
+        claimForDelivery: () =>
+          Effect.andThen(wait, Effect.fail(databaseUnreachable)),
+      })
+    )
+  ).pipe(Layer.provide(DatabaseLive))
+
+const CannotReadTheDatabase = cannotReadTheDatabaseAfter(Effect.void)
+
+const stop = () => {
+  const reached = Promise.withResolvers<void>()
+  const resumed = Promise.withResolvers<void>()
+  return {
+    reached: reached.promise,
+    resume: resumed.resolve,
+    wait: Effect.promise(() => {
+      reached.resolve()
+      return resumed.promise
+    }),
+  }
+}
 
 describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
   'Runs of packages/api/models/queue-claims.qnt on Redis and Postgres - Integration',
@@ -114,21 +135,75 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
     const pushFails = createMockPushService({ shouldFail: true })
 
     const stopsAtTheSend = () => {
-      const reached = Promise.withResolvers<void>()
-      const resumed = Promise.withResolvers<void>()
+      const { wait, reached, resume } = stop()
       const sends = Layer.effect(
         PushService,
         Effect.map(PushService, (push) => ({
           ...push,
           sendBatch: (messages: Parameters<typeof push.sendBatch>[0]) =>
-            Effect.promise(() => {
-              reached.resolve()
-              return resumed.promise
-            }).pipe(Effect.andThen(push.sendBatch(messages))),
+            Effect.andThen(wait, push.sendBatch(messages)),
         }))
       ).pipe(Layer.provide(sendsAtOnce))
-      return { sends, reached: reached.promise, resume: resumed.resolve }
+      return { sends, reached, resume }
     }
+
+    const stopsAtTheTokenRead = () => {
+      const { wait, reached, resume } = stop()
+      const tokens = Layer.effect(
+        DeviceTokenRepository,
+        Effect.map(DeviceTokenRepository, (repository) => ({
+          ...repository,
+          findByUserId: (id: string) =>
+            Effect.andThen(wait, repository.findByUserId(id)),
+        }))
+      ).pipe(Layer.provide(DatabaseLive))
+      return { tokens, reached, resume }
+    }
+
+    const diesAfterTheSend = Layer.effect(
+      PushService,
+      Effect.map(PushService, (push) => ({
+        ...push,
+        sendBatch: (messages: Parameters<typeof push.sendBatch>[0]) =>
+          Effect.andThen(push.sendBatch(messages), Effect.interrupt),
+      }))
+    ).pipe(Layer.provide(sendsAtOnce))
+
+    const diesAtTheAlert = {
+      layer: Layer.succeed(Alerter, {
+        alert: () => Effect.interrupt,
+        alertWarning: () => Effect.interrupt,
+      }),
+      events: [],
+    }
+
+    const stopsAtTheAlert = () => {
+      const { wait, reached, resume } = stop()
+      const alerter = createMockAlerter()
+      let stopped = false
+      const layer = Layer.effect(
+        Alerter,
+        Effect.map(Alerter, (service) => ({
+          ...service,
+          alert: (event: Parameters<typeof service.alert>[0]) =>
+            Effect.suspend(() => {
+              if (stopped) return service.alert(event)
+              stopped = true
+              return Effect.andThen(wait, service.alert(event))
+            }),
+        }))
+      ).pipe(Layer.provide(alerter.layer))
+      return { alerter: { layer, events: alerter.events }, reached, resume }
+    }
+
+    const ackFails = () =>
+      Layer.succeed(MessageQueue, {
+        ...queue,
+        ack: () =>
+          Effect.fail(
+            new QueueOperationError({ message: 'redis down', cause: null })
+          ),
+      })
 
     const poll = (enqueuesOn: IMessageQueue = queue) =>
       Effect.runPromise(
@@ -145,8 +220,11 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
 
     const consume = (
       sends: Layer.Layer<PushService> = sendsAtOnce,
-      alerter = createMockAlerter(),
-      rows: typeof CannotReadTheDatabase = DatabaseLive
+      alerter: Pick<
+        ReturnType<typeof createMockAlerter>,
+        'layer'
+      > = createMockAlerter(),
+      instead: Layer.Layer<never, unknown> = Layer.empty
     ) =>
       Effect.runPromiseExit(
         consumeNext.pipe(
@@ -158,7 +236,7 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
               sends,
               createMockActivityPushTokenRepository(),
               createMockCareLogRepository([]),
-              rows
+              instead
             )
           ),
           quiet
@@ -550,6 +628,177 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       holder.resume()
       await held
       expect(await rowStatus(id)).toBe('sent')
+    }, 20_000)
+
+    it.each([
+      ['before it starts the push', stopsAtTheTokenRead],
+      ['at the send', stopsAtTheSend],
+    ])(
+      'quietConsumer: a consumer that goes quiet %s and resumes after its redelivery pushes nothing more',
+      async (_, stops) => {
+        const id = await dueRow()
+        await poll()
+
+        const quietConsumer = stops()
+        const first =
+          'sends' in quietConsumer
+            ? consume(quietConsumer.sends)
+            : consume(sendsAtOnce, createMockAlerter(), quietConsumer.tokens)
+        await quietConsumer.reached
+        await claimsGoStale()
+        await sweep()
+        await consume()
+
+        quietConsumer.resume()
+        await first
+
+        expect(
+          pushes,
+          'pushes of one notification whose first consumer went quiet past the visibility timeout'
+        ).toHaveLength(1)
+        expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+        if ('tokens' in quietConsumer) expect(await rowStatus(id)).toBe('sent')
+      },
+      20_000
+    )
+
+    it('quietConsumer: a quiet consumer that fails after its redelivery took the row leaves the row to the redelivery', async () => {
+      const id = await dueRow()
+      await poll()
+
+      const quietConsumer = stop()
+      const first = consume(
+        sendsAtOnce,
+        createMockAlerter(),
+        cannotReadTheDatabaseAfter(quietConsumer.wait)
+      )
+      await quietConsumer.reached
+      await claimsGoStale()
+      await sweep()
+      const sending = stopsAtTheSend()
+      const redelivery = consume(sending.sends)
+      await sending.reached
+
+      quietConsumer.resume()
+      await first
+      sending.resume()
+      await redelivery
+      await poll()
+      await consume()
+
+      expect(
+        [pushes.length, await row(id)],
+        'pushes and the row after a quiet consumer failed behind the redelivery that sent'
+      ).toEqual([1, expect.objectContaining({ status: 'sent', retryCount: 0 })])
+    }, 20_000)
+
+    it('diesAfterPush: a consumer that stops between the push and the sent mark is not pushed again on redelivery', async () => {
+      const id = await dueRow()
+      await poll()
+
+      await consume(diesAfterTheSend)
+      expect(await rowStatus(id)).toBe('queued')
+      await claimsGoStale()
+      await sweep()
+      await consume()
+
+      expect(
+        pushes,
+        'pushes of one notification whose consumer stopped after the push'
+      ).toHaveLength(1)
+      expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+
+      await db.execute(
+        sql`UPDATE notifications SET queued_at = now() - interval '2 hours' WHERE id = ${id}`
+      )
+      await sweep()
+      expect(await rowStatus(id)).toBe('failed')
+    }, 20_000)
+
+    it('ackFailsAfterDiscard: a discarded entry whose ack failed is dead-lettered once and alerted once', async () => {
+      const id = await dueRow()
+      await poll()
+      await redis.del(QUEUE_KEY)
+      await redis.lpush(
+        QUEUE_KEY,
+        JSON.stringify({
+          id: 'poison-1',
+          topic: 'no_such_topic',
+          payload: { notificationIds: [id] },
+        })
+      )
+      const alerter = createMockAlerter()
+
+      await consume(sendsAtOnce, alerter, ackFails())
+      expect(await redis.hlen(IN_FLIGHT_KEY)).toBe(1)
+      await claimsGoStale()
+      await sweep()
+      await consume(sendsAtOnce, alerter)
+
+      expect(
+        [await deadLetters(), alerter.events.length],
+        'dead letters and alerts of one poison entry that was discarded twice'
+      ).toEqual([1, 1])
+      expect(await rowStatus(id)).toBe('failed')
+      expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+    }, 20_000)
+
+    it('diesBeforeAlert: a last failure whose consumer stopped before the alert is alerted by its redelivery', async () => {
+      const id = await dueRow()
+      await db.execute(
+        sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${id}`
+      )
+      await poll()
+
+      await consume(pushFails, diesAtTheAlert)
+      expect([await rowStatus(id), await deadLetters()]).toEqual(['failed', 1])
+      await claimsGoStale()
+      await sweep()
+      const alerter = createMockAlerter()
+      await consume(pushFails, alerter)
+      await claimsGoStale()
+      await sweep()
+      await consume(pushFails, alerter)
+
+      expect(
+        [exhaustedAlerts(alerter), await deadLetters()],
+        'alerts and dead letters of a failed notification whose first alert was lost'
+      ).toEqual([1, 1])
+      expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+    }, 20_000)
+
+    it('slowDiscard: an entry redelivered while its first discard is still running is dead-lettered once and alerted once', async () => {
+      await redis.lpush(
+        QUEUE_KEY,
+        JSON.stringify({ id: 'poison-slow', topic: 'no_such_topic' })
+      )
+      const slow = stopsAtTheAlert()
+
+      const first = consume(sendsAtOnce, slow.alerter)
+      await slow.reached
+      await claimsGoStale()
+      await sweep()
+      const redelivery = consume(sendsAtOnce, slow.alerter)
+      await Promise.race([redelivery, sessionsWaitingForALock(pool, 1)])
+      slow.resume()
+      await first
+      await redelivery
+
+      expect(
+        [await deadLetters(), slow.alerter.events.length],
+        'dead letters and alerts of one entry discarded by two consumers at once'
+      ).toEqual([1, 1])
+      expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
+    }, 20_000)
+
+    it('dead-letters two entries without a readable id as two dead letters', async () => {
+      await redis.lpush(QUEUE_KEY, 'not json', 'not json either')
+      const alerter = createMockAlerter()
+
+      await consume(sendsAtOnce, alerter)
+      await consume(sendsAtOnce, alerter)
+
+      expect([await deadLetters(), alerter.events.length]).toEqual([2, 2])
     }, 20_000)
 
     it.each([

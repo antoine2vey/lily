@@ -3808,6 +3808,43 @@ describe('Notification Worker', () => {
       expect(redis.acked).toEqual([JSON.stringify(valid)])
     })
 
+    it('refreshes the claim of an undecodable entry while its discard runs', async () => {
+      const redis = createInMemoryRedisQueue(['not json'])
+      const refreshed: string[] = []
+      const countsRefreshes = Layer.succeed(MessageQueue, {
+        ...redis.queue,
+        refreshClaim: (claim: string) =>
+          Effect.sync(() => {
+            refreshed.push(claim)
+          }),
+      })
+      const slowDeadLetters = Layer.effect(
+        DeadLetterRepository,
+        Effect.map(DeadLetterRepository, (repo) => ({
+          ...repo,
+          create: (data: CreateDeadLetterData) =>
+            Effect.sleep('3 minutes').pipe(Effect.andThen(repo.create(data))),
+        }))
+      ).pipe(Layer.provide(createMockDeadLetterRepository()))
+
+      await runWorkersAndTimeDrain(
+        workerLayer({
+          queue: countsRefreshes,
+          push: createMockPushService(),
+          rows: [],
+          alerter: MockAlerterLive,
+          deadLetters: slowDeadLetters,
+        }),
+        '4 minutes'
+      )
+
+      expect(
+        refreshed.length,
+        'claim refreshes during a discard three times as long as CLAIM_REFRESH_INTERVAL'
+      ).toBeGreaterThanOrEqual(2)
+      expect(redis.acked).toEqual(['not json'])
+    })
+
     it('refreshes a claim at least twice within the visibility timeout', () => {
       expect(Duration.toMillis(CLAIM_REFRESH_INTERVAL) * 2).toBeLessThanOrEqual(
         Duration.toMillis(VISIBILITY_TIMEOUT)
