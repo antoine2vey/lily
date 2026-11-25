@@ -130,7 +130,7 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit --tsBuildInfoFile tsconfig.check.tsbuildinfo",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "bunx --bun biome check .",

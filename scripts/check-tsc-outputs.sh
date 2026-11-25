@@ -5,7 +5,7 @@ set -uo pipefail
 CHECK_INFO=tsconfig.check.tsbuildinfo
 
 build_infos() {
-  find "$1" -name '*.tsbuildinfo' -not -path '*/node_modules/*' "${@:2}"
+  find "$1" -name '*.tsbuildinfo' -not -name "$CHECK_INFO" -not -path '*/node_modules/*'
 }
 
 failed=0
@@ -50,7 +50,7 @@ for dir in "${dirs[@]}"; do
     echo "  A check writes its build info to $CHECK_INFO only. The build reads and writes every other one."
     rm -f "$info"
     failed=1
-  done < <(build_infos "$dir" -not -name "$CHECK_INFO")
+  done < <(build_infos "$dir")
 
   if [[ -d "$aside/$dir" ]]; then
     cp -Rp "$aside/$dir/." "$dir/"

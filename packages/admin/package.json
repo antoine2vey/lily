@@ -11,7 +11,7 @@
     "dev": "bunx --bun vite",
     "build": "tsc && bunx --bun vite build",
     "preview": "bunx --bun vite preview",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit --tsBuildInfoFile tsconfig.check.tsbuildinfo",
     "test": "echo 'No tests yet'",
     "lint": "bunx --bun biome check .",
     "lint:fix": "bunx --bun biome check --write ."
