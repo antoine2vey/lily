@@ -39,10 +39,14 @@ import {
 } from '@lily/shared/errors/gift-code'
 import { UserNotFoundError } from '@lily/shared/errors/user'
 import { PlantsListResponse } from '@lily/shared/plant'
-import { Schema } from 'effect'
+import { Schema, SchemaTransformation } from 'effect'
 import { HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from 'effect/http-api'
 
-const userIdParam = Schema.String.check(Schema.isGUID())
+// Lowercased like `PlantIdParam`. Postgres matches a uuid in any case, but the
+// self checks and the per-user advisory key compare the id as text.
+const userIdParam = Schema.String.pipe(
+  Schema.decode(SchemaTransformation.toLowerCase())
+).check(Schema.isGUID())
 
 const messageIdParam = Schema.String.check(Schema.isGUID())
 

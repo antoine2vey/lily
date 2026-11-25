@@ -55,6 +55,7 @@ export const createMockDeadLetterRepository = (
           })
         )
       }),
+    deleteNaming: () => Effect.void,
   }
 
   return Layer.succeed(DeadLetterRepository, repo)

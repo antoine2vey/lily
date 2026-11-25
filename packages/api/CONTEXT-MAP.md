@@ -115,7 +115,7 @@ One row per file in `src/repositories/`. "Tables written" comes from the `.inser
 | `chat` | Assistant | `chatConversations`, `chatMessages` | Admin r | |
 | `chat-follow-up` | Assistant | `chatFollowUpSets` | none | |
 | `daily-tip` | Engagement | `dailyTips` | none | |
-| `dead-letter` | Platform (inferred) | `deadLetterMessages` | Notifications W (`src/services/notification-scheduler/worker.ts`), Assistant W (`src/services/knowledge-ingestion/processor.ts`) | **MULTI** |
+| `dead-letter` | Platform (inferred) | `deadLetterMessages` | Notifications W (`src/services/notification-scheduler/worker.ts`), Assistant W (`src/services/knowledge-ingestion/processor.ts`), Identity W (`deleteNaming` in `src/services/user/helpers/purge-account.ts`) | **MULTI** |
 | `delegation` | Absence | none. The Absence store writes `careDelegations` and `delegationPlants`. | r from Care, Canopy, Reminders, Assistant and Weather | read side of Absence, with no write and no lock |
 | `device-token` | Notifications | `deviceTokens` | Identity W (`deleteByUserId` in `src/services/user/helpers/release-account.ts`), Admin r | **MULTI** |
 | `diagnosis` | Assistant | `diagnoses` | none (the `diagnosis` module reads) | |

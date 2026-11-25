@@ -4,7 +4,7 @@ import {
   ONE_DEAD_LETTER_PER_MESSAGE,
 } from '@lily/db/schema'
 import { nowAsDate } from '@lily/shared'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, isNull, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -65,6 +65,13 @@ export interface IDeadLetterRepository {
   readonly takeAlert: (
     owed: AlertOwed
   ) => Effect.Effect<DeadLetterMessage | null, SqlError>
+  /**
+   * Deletes every dead letter whose payload holds `userId` anywhere, for the
+   * account purge. The poison path and the outbox store a payload that names
+   * users without setting `user_id`, a raw entry is stored as text, and an
+   * outbox event can name two users.
+   */
+  readonly deleteNaming: (userId: string) => Effect.Effect<void, SqlError>
 }
 
 export class DeadLetterRepository extends Context.Service<
@@ -126,6 +133,16 @@ export const DeadLetterRepositoryLive = Layer.effect(
         return Option.getOrNull(
           Option.map(Array.head(rows), mapToDeadLetterMessage)
         )
+      }),
+
+      deleteNaming: Effect.fn('DeadLetterRepository.deleteNaming')(function* (
+        userId: string
+      ) {
+        yield* db
+          .delete(deadLetterMessages)
+          .where(
+            sql`strpos(${deadLetterMessages.payload}::text, ${userId}) > 0`
+          )
       }),
     }
   })

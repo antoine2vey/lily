@@ -51,6 +51,10 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 const encodeJson = Schema.encodeSync(Schema.fromJsonString(Schema.Unknown))
 
+// `users.id` is a uuid, and Postgres refuses to compare it with any other text,
+// such as the anonymous id RevenueCat gives a customer before they sign in.
+const isAccountId = Schema.is(Schema.String.check(Schema.isUUID()))
+
 export const ReservationId = Schema.String.pipe(Schema.brand('ReservationId'))
 export type ReservationId = typeof ReservationId.Type
 
@@ -90,6 +94,8 @@ export interface RevenueCatWebhookEventRecord {
   environment: string
 }
 
+export type WebhookEventClaim = 'recorded' | 'redelivered' | 'no_account'
+
 export interface ISubscriptionRepository {
   readonly findByUserId: (
     userId: string
@@ -110,16 +116,21 @@ export interface ISubscriptionRepository {
 
   /**
    * Holds the account until the transaction ends, so no deletion of it can
-   * start between two writes that name it. False when the account is gone.
+   * start between two writes that name it. False when the account is gone,
+   * or when `userId` cannot be the id of one.
    */
   readonly holdAccount: (
     userId: string
   ) => Effect.Effect<boolean, SqlError, Transaction>
 
-  // Records a RevenueCat event id. False when the id was already recorded.
+  /**
+   * Records a RevenueCat event id under a hold of its account, so a purge
+   * either finds the row or commits first and leaves nothing to record. The
+   * row names the account by its stored id, whatever case RevenueCat sent.
+   */
   readonly claimWebhookEvent: (
     event: RevenueCatWebhookEventRecord
-  ) => Effect.Effect<boolean, SqlError>
+  ) => Effect.Effect<WebhookEventClaim, SqlError, Transaction>
 
   // The events have no foreign key to users, so the account purge calls this.
   readonly deleteWebhookEvents: (
@@ -224,6 +235,17 @@ export const SubscriptionRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
     const client = yield* SqlClient.SqlClient
 
+    // The id as the users row answers it, in lowercase.
+    const heldAccountId = Effect.fn('SubscriptionRepository.heldAccountId')(
+      function* (userId: string) {
+        if (!isAccountId(userId)) return Option.none<string>()
+        const held = yield* pinAccounts(
+          db.select({ id: users.id }).from(users).where(eq(users.id, userId))
+        )
+        return Option.map(Array.head(held), (row) => row.id)
+      }
+    )
+
     const getMonthBoundaries = () => ({
       periodStart: startOfMonthAsDate(),
       periodEnd: endOfMonthAsDate(),
@@ -295,23 +317,21 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .where(isNotNull(userSubscriptions.externalSubscriptionId))
       ).pipe(Effect.withSpan('SubscriptionRepository.findStoreSubscriptions')),
 
-      holdAccount: Effect.fn('SubscriptionRepository.holdAccount')(function* (
-        userId: string
-      ) {
-        const held = yield* pinAccounts(
-          db.select({ id: users.id }).from(users).where(eq(users.id, userId))
-        )
-        return Array.isReadonlyArrayNonEmpty(held)
-      }),
+      holdAccount: (userId: string) =>
+        Effect.map(heldAccountId(userId), Option.isSome),
 
       claimWebhookEvent: Effect.fn('SubscriptionRepository.claimWebhookEvent')(
         function* (event: RevenueCatWebhookEventRecord) {
+          const held = yield* heldAccountId(event.appUserId)
+          if (Option.isNone(held)) return 'no_account'
           const inserted = yield* db
             .insert(revenuecatWebhookEvents)
-            .values(event)
+            .values({ ...event, appUserId: held.value })
             .onConflictDoNothing()
             .returning({ id: revenuecatWebhookEvents.id })
           return Array.isReadonlyArrayNonEmpty(inserted)
+            ? 'recorded'
+            : 'redelivered'
         }
       ),
 

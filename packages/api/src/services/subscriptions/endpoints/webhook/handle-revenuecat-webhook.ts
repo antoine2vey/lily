@@ -1,3 +1,4 @@
+import { transactQuietly } from '@lily/api/kernel/transact'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { syncStoreState } from '@lily/api/services/subscriptions/endpoints/webhook/sync-store-state'
 import { RevenueCatProvider } from '@lily/api/services/subscriptions/providers/revenuecat.provider'
@@ -59,16 +60,18 @@ export const handleRevenueCatWebhook = (
       source: `webhook:${event.type}`,
     })
 
-    const firstDelivery = yield* subRepo.claimWebhookEvent({
-      id: event.id,
-      eventType: event.type,
-      appUserId: event.app_user_id,
-      environment: event.environment,
-    })
+    const claim = yield* transactQuietly(
+      subRepo.claimWebhookEvent({
+        id: event.id,
+        eventType: event.type,
+        appUserId: event.app_user_id,
+        environment: event.environment,
+      })
+    )
 
     yield* Effect.log('[Webhook] Applied event', {
       id: event.id,
       outcome,
-      redelivered: !firstDelivery,
+      claim,
     })
   }).pipe(Effect.withSpan('SubscriptionService.handleRevenueCatWebhookEvent'))

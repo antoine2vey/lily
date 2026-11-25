@@ -167,7 +167,7 @@ export const createMockSubscriptionRepository = (
         : []
     ),
     holdAccount: () => Effect.succeed(true),
-    claimWebhookEvent: () => Effect.succeed(true),
+    claimWebhookEvent: () => Effect.succeed('recorded'),
     deleteWebhookEvents: () => Effect.void,
     create: (data) => {
       if (failingCreates > 0) {
