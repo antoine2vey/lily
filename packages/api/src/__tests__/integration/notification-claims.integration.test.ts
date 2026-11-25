@@ -1,4 +1,8 @@
-import { holdRowUntilWaited } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  holdRowUntilWaited,
+  sessionsWaitingForALock,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { createMockMessageQueue } from '@lily/api/__tests__/mocks/message-queue'
 import { type CareReads, CareReadsLive } from '@lily/api/contexts/care'
 import {
@@ -83,6 +87,7 @@ const floorToMinute = (date: Date) =>
   new Date(Math.floor(date.getTime() / 60_000) * 60_000)
 
 interface SeedRow {
+  id?: string
   status: 'pending' | 'queued' | 'sent' | 'failed'
   queuedAt: Date | null
   deliveryMessageId?: string
@@ -135,6 +140,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .insert(schema.notifications)
         .values(
           Arr.map(rows, (row) => ({
+            id: row.id,
             type: 'watering_reminder' as const,
             title: 'Water',
             body: 'Water your plant',
@@ -457,6 +463,155 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           'failed',
           'queued',
         ])
+      })
+
+      const earlier = '00000000-0000-0000-0000-0000000000b1'
+      const later = '00000000-0000-0000-0000-0000000000b2'
+
+      // Inserted later first, so a scan of the table meets it before
+      // earlier, the reverse of id order.
+      const insertLaterFirst = (row: SeedRow) =>
+        insertRows([
+          { ...row, id: later },
+          { ...row, id: earlier },
+        ])
+
+      const whileLaterIsHeld = <A, B>(
+        first: () => Promise<A>,
+        second: () => Promise<B>
+      ) =>
+        holdRowUntilWaited(
+          pool,
+          'SELECT id FROM notifications WHERE id = $1 FOR UPDATE',
+          [later],
+          async () => {
+            const one = first()
+            await sessionsWaitingForALock(pool, 1)
+            const two = second()
+            return Promise.allSettled([one, two])
+          }
+        )
+
+      it('fails abandoned deliveries while a retry of the same rows waits, with no deadlock', async () => {
+        await insertLaterFirst({
+          status: 'queued',
+          queuedAt: minutesAgo(90),
+          deliveryMessageId: 'msg-abandoned',
+        })
+
+        const { waiting, result } = await whileLaterIsHeld(
+          () =>
+            withRepo((repo) =>
+              repo.failAbandonedDeliveries(
+                minutesAgo(60),
+                'delivery not confirmed'
+              )
+            ),
+          () =>
+            withRepo((repo) =>
+              repo.retryLater(
+                [earlier, later],
+                claimOf('msg-abandoned'),
+                [new Date()],
+                'push failed'
+              )
+            )
+        )
+
+        expect(waiting).toBe(2)
+        expect(await result).toEqual([
+          { status: 'fulfilled', value: 2 },
+          { status: 'fulfilled', value: [] },
+        ])
+        expect(await statusesOf([earlier, later])).toEqual(['failed', 'failed'])
+      })
+
+      it('releases stale unclaimed rows while a late claim of the same rows waits, with no deadlock', async () => {
+        await insertLaterFirst({ status: 'queued', queuedAt: minutesAgo(20) })
+
+        const { waiting, result } = await whileLaterIsHeld(
+          () =>
+            withRepo((repo) => repo.releaseUnclaimedOlderThan(minutesAgo(10))),
+          () =>
+            withRepo((repo) =>
+              repo.claimForDelivery([earlier, later], dequeueOf('msg-late'))
+            )
+        )
+
+        expect(waiting).toBe(2)
+        expect(await result).toEqual([
+          { status: 'fulfilled', value: 2 },
+          { status: 'fulfilled', value: [] },
+        ])
+        expect(await statusesOf([earlier, later])).toEqual([
+          'pending',
+          'pending',
+        ])
+      })
+
+      it('fails abandoned deliveries without waiting on a pending row another session holds', async () => {
+        await insertRows([
+          { ...pendingRow, id: earlier },
+          {
+            id: later,
+            status: 'queued',
+            queuedAt: minutesAgo(90),
+            deliveryMessageId: 'msg-abandoned',
+          },
+        ])
+
+        const holder = await pool.connect()
+        try {
+          await holder.query('BEGIN')
+          await holder.query(
+            'SELECT id FROM notifications WHERE id = $1 FOR UPDATE',
+            [earlier]
+          )
+          const sweep = withRepo((repo) =>
+            repo.failAbandonedDeliveries(
+              minutesAgo(60),
+              'delivery not confirmed'
+            )
+          )
+
+          expect(await waitsForALock(pool, sweep)).toBe(false)
+          expect(await sweep).toBe(1)
+        } finally {
+          await holder.query('ROLLBACK')
+          holder.release()
+        }
+
+        expect(await statusesOf([earlier, later])).toEqual([
+          'pending',
+          'failed',
+        ])
+      })
+
+      it('releases stale unclaimed rows without waiting on a sent row another session holds', async () => {
+        await insertRows([
+          { id: earlier, status: 'sent', queuedAt: minutesAgo(20) },
+          { id: later, status: 'queued', queuedAt: minutesAgo(20) },
+        ])
+
+        const holder = await pool.connect()
+        try {
+          await holder.query('BEGIN')
+          await holder.query(
+            'SELECT id FROM notifications WHERE id = $1 FOR UPDATE',
+            [earlier]
+          )
+          const sweep = withRepo((repo) =>
+            repo.releaseUnclaimedOlderThan(minutesAgo(10))
+          )
+
+          expect(await waitsForALock(pool, sweep)).toBe(false)
+          expect(await sweep).toBe(1)
+        } finally {
+          await holder.query('ROLLBACK')
+          holder.release()
+        }
+
+        expect(await statusesOf([earlier, later])).toEqual(['sent', 'pending'])
       })
     })
 
