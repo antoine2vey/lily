@@ -20,6 +20,7 @@ import { endActivity } from '@lily/api/services/activity-push-tokens/endpoints/e
 import { registerActivityToken } from '@lily/api/services/activity-push-tokens/endpoints/register-activity-token'
 import { expireStaleActivities } from '@lily/api/services/activity-scheduler/scheduler'
 import type { CurrentUser } from '@lily/api/services/auth/middleware.types'
+import { syncCards } from '@lily/api/services/live-activity/cards'
 import type { QueueMessage } from '@lily/api/services/message-queue/types'
 import { pollAndEnqueue } from '@lily/api/services/notification-scheduler/scheduler'
 import { processMessage } from '@lily/api/services/notification-scheduler/worker'
@@ -84,9 +85,16 @@ const RepositoriesLive = Layer.mergeAll(
   )
 )
 
+interface SendPause {
+  readonly to: string
+  readonly reached: () => void
+  readonly released: Promise<void>
+}
+
 const pushServiceRecording = (
   sent: LiveActivityPushMessage[],
-  failingTokens: ReadonlyArray<string>
+  failingTokens: ReadonlyArray<string>,
+  pause?: SendPause
 ) =>
   Layer.succeed(PushService, {
     sendBatch: (messages) =>
@@ -99,6 +107,10 @@ const pushServiceRecording = (
     sendLiveActivity: (message) =>
       Effect.gen(function* () {
         sent.push(message)
+        if (message._tag === 'LiveActivityStart' && message.to === pause?.to) {
+          pause.reached()
+          yield* Effect.promise(() => pause.released)
+        }
         yield* Effect.sleep('5 millis')
         if (Arr.contains(failingTokens, message.to)) {
           return yield* new PushSendError({ message: 'APNs 500' })
@@ -238,27 +250,30 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       return enqueued
     }
 
-    const deliverConcurrently = async (
+    const runWorker = async (
       messages: ReadonlyArray<QueueMessage>,
-      failingTokens: ReadonlyArray<string> = []
+      push: Layer.Layer<PushService>
     ) => {
-      const sent: LiveActivityPushMessage[] = []
       const exit = await Effect.runPromiseExit(
         Effect.all(Arr.map(messages, processMessage), {
           concurrency: 'unbounded',
           discard: true,
         }).pipe(
           Effect.provide(
-            Layer.mergeAll(
-              RepositoriesLive,
-              MockAlerterLive,
-              pushServiceRecording(sent, failingTokens)
-            )
+            Layer.mergeAll(RepositoriesLive, MockAlerterLive, push)
           ),
           Effect.provideService(References.MinimumLogLevel, 'None')
         )
       )
       expect(Exit.isSuccess(exit)).toBe(true)
+    }
+
+    const deliverConcurrently = async (
+      messages: ReadonlyArray<QueueMessage>,
+      failingTokens: ReadonlyArray<string> = []
+    ) => {
+      const sent: LiveActivityPushMessage[] = []
+      await runWorker(messages, pushServiceRecording(sent, failingTokens))
       const statuses = await db
         .select({ status: schema.notifications.status })
         .from(schema.notifications)
@@ -329,13 +344,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       )
 
+    // The app reports the activity id that came in the start's attributes as
+    // both ids, as the tests below use one id per card.
     const confirm = (activityId: string, updateToken: string) =>
       asDevice(
         registerActivityToken({
           deviceTokenId: devices[0],
           activityId,
           updateToken,
+          startId: activityId,
         })
+      )
+
+    const sweep = () =>
+      Effect.runPromise(
+        expireStaleActivities.pipe(
+          Effect.provide(RepositoriesLive),
+          Effect.provideService(References.MinimumLogLevel, 'None')
+        )
       )
 
     const confirmThenEnd = async (
@@ -347,7 +373,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await asDevice(endActivity(activityId))
     }
 
-    // The four tests below replay the runs of the same names in
+    // The seven tests below replay the runs of the same names in
     // packages/api/models/la-start.qnt.
     it('digestThenReminder: holds the reminder 2h18m after a digest the device never confirmed', async () => {
       vi.useFakeTimers({ toFake: ['Date'] })
@@ -396,17 +422,118 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await confirmThenEnd(await deliverBatch())
       vi.setSystemTime(Date.now() + 601 * MINUTE)
       await confirm(startedOn(await deliverBatch(), 'start-0'), 'update-0b')
-      await Effect.runPromise(
-        expireStaleActivities.pipe(
-          Effect.provide(RepositoriesLive),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
+      await sweep()
       const reminder = await deliverBatch()
       expect(
         Arr.filter(reminder, (m) => m.to === 'update-0b' || m.to === 'start-0'),
         'pushes to the device whose second card was just confirmed'
       ).toMatchObject([{ _tag: 'LiveActivityUpdate', to: 'update-0b' }])
+    })
+
+    it('digestThenLateReminder: holds the reminder 10h1m after a digest the device never confirmed, while that card can still show', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const digest = await deliverBatch()
+      vi.setSystemTime(Date.now() + 601 * MINUTE)
+      const reminder = await deliverBatch()
+      vi.setSystemTime(Date.now() + 178 * MINUTE)
+      const lastHeld = await deliverBatch()
+      vi.setSystemTime(Date.now() + 2 * MINUTE)
+      const nextStart = await deliverBatch()
+      expect(
+        count(
+          [...digest, ...reminder, ...lastHeld],
+          'LiveActivityStart',
+          'start-0'
+        ),
+        'push-to-start sends within 13h of a start the device never confirmed'
+      ).toBe(1)
+      expect(
+        count(nextStart, 'LiveActivityStart', 'start-0'),
+        'push-to-start sends 13h01m after it'
+      ).toBe(1)
+    })
+
+    it('confirmMidBatch: holds a second batch when an old card posts again between the first batch’s claim and its send', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      await seedTokens([])
+      const old = startedOn(await deliverBatch(), 'start-0')
+      await confirm(old, 'update-0')
+      vi.setSystemTime(Date.now() + 601 * MINUTE)
+      await sweep()
+      await db
+        .delete(schema.notifications)
+        .where(eq(schema.notifications.userId, userId))
+      const [digest, reminder] = await enqueueCarePushes(2)
+      if (!digest || !reminder) throw new Error('two care pushes expected')
+
+      let reached = () => {}
+      const atSend = new Promise<void>((resolve) => {
+        reached = resolve
+      })
+      let release = () => {}
+      const released = new Promise<void>((resolve) => {
+        release = resolve
+      })
+      const digestSent: LiveActivityPushMessage[] = []
+      const digestRun = runWorker(
+        [digest],
+        pushServiceRecording(digestSent, [], {
+          to: 'start-0',
+          reached,
+          released,
+        })
+      )
+      await atSend
+      await confirm(old, 'update-0')
+      await sweep()
+      const reminderSent: LiveActivityPushMessage[] = []
+      await runWorker([reminder], pushServiceRecording(reminderSent, []))
+      release()
+      await digestRun
+
+      expect(
+        count(digestSent, 'LiveActivityStart', 'start-0'),
+        'push-to-start sends for the digest'
+      ).toBe(1)
+      expect(
+        count(reminderSent, 'LiveActivityStart', 'start-0'),
+        'push-to-start sends for the reminder while the digest card is unconfirmed'
+      ).toBe(0)
+    })
+
+    it('lostEnd: updates the card a failed End push left on the device instead of starting another', async () => {
+      await seedTokens([])
+      await confirm(startedOn(await deliverBatch(), 'start-0'), 'update-0')
+      const setDue = (at: Date) =>
+        db
+          .update(schema.plantCareSchedules)
+          .set({ nextCareAt: at, dueDay: careDayOf(at) })
+          .where(eq(schema.plantCareSchedules.plantId, plantId))
+      const ended: LiveActivityPushMessage[] = []
+      await setDue(new Date(Date.now() + 7 * 86_400_000))
+      try {
+        await Effect.runPromise(
+          syncCards(userId, 'keep').pipe(
+            Effect.provide(
+              Layer.mergeAll(
+                RepositoriesLive,
+                pushServiceRecording(ended, ['update-0'])
+              )
+            ),
+            Effect.provideService(References.MinimumLogLevel, 'None')
+          )
+        )
+      } finally {
+        await setDue(new Date(Date.now() - 86_400_000))
+      }
+      expect(ended).toMatchObject([{ _tag: 'LiveActivityEnd', to: 'update-0' }])
+
+      const reminder = await deliverBatch()
+      expect(
+        Arr.filter(reminder, (m) => m.to === 'update-0' || m.to === 'start-0'),
+        'pushes to the device that still shows its card'
+      ).toMatchObject([{ _tag: 'LiveActivityUpdate', to: 'update-0' }])
     })
 
     it('still expires a card 10h after it started when it posted a rotated token since', async () => {
@@ -417,12 +544,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       vi.setSystemTime(Date.now() + 599 * MINUTE)
       await confirm(activityId, 'update-0-rotated')
       vi.setSystemTime(Date.now() + 2 * MINUTE)
-      await Effect.runPromise(
-        expireStaleActivities.pipe(
-          Effect.provide(RepositoriesLive),
-          Effect.provideService(References.MinimumLogLevel, 'None')
-        )
-      )
+      await sweep()
       const rows = await db
         .select({ status: schema.activityPushTokens.status })
         .from(schema.activityPushTokens)
