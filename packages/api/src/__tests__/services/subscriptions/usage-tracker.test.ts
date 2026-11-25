@@ -19,10 +19,29 @@ import {
   UsageTrackerLive,
 } from '@lily/api/services/subscriptions/usage-tracker'
 import type { subscriptionUsage } from '@lily/db/schema'
-import { LimitExceededError, type UsageField, ZoneName } from '@lily/shared'
+import {
+  isInDndWindow,
+  LimitExceededError,
+  timeToMinutes,
+  type UsageField,
+  withTimeZone,
+  ZoneName,
+} from '@lily/shared'
 import type { Notification } from '@lily/shared/notification'
 import { defectOf, failureOf } from '@lily/shared/testing'
-import { Deferred, Effect, Exit, Fiber, FiberSet, Layer, Schema } from 'effect'
+import {
+  Array,
+  DateTime,
+  Deferred,
+  Effect,
+  Exit,
+  Fiber,
+  FiberSet,
+  Layer,
+  pipe,
+  Random,
+  Schema,
+} from 'effect'
 import { describe, expect, it, vi } from 'vitest'
 
 class TurnFailed extends Schema.TaggedError<
@@ -582,5 +601,148 @@ describe('UsageTracker', () => {
       expect(defectOf(exit)).toEqual(new Error('fiber set gone'))
       expect(released).toEqual(['aiChats'])
     })
+  })
+})
+
+describe('the approaching_limit slot', () => {
+  // Sunday in Paris (UTC+2).
+  const SUNDAY_06_30 = new Date('2026-06-14T04:30:00.000Z')
+  const SUNDAY_09_30 = new Date('2026-06-14T07:30:00.000Z')
+  const SUNDAY_23_30 = new Date('2026-06-14T21:30:00.000Z')
+
+  // A roll under 0.5 prefers the morning window, and these land on the middle
+  // of a whole window.
+  const MORNING = 0.25
+  const EVENING = 0.75
+  const ROLLS = Array.makeBy(20, (i) => i / 20)
+
+  const PARIS = ZoneName.make('Europe/Paris')
+  const inParis = (dnd: readonly [string, string] | null) => ({
+    ...mockUser1,
+    timezone: PARIS,
+    doNotDisturb: dnd !== null,
+    doNotDisturbStart: dnd?.[0] ?? null,
+    doNotDisturbEnd: dnd?.[1] ?? null,
+  })
+
+  const rolling = (roll: number): Random.Random => ({
+    nextDoubleUnsafe: () => roll,
+    nextIntUnsafe: () => 0,
+  })
+
+  const slotOf = async (
+    now: Date,
+    roll: number,
+    dnd: readonly [string, string] | null = null
+  ): Promise<Date> => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(now)
+    const user = inParis(dnd)
+    const recorded = Promise.withResolvers<Notification>()
+    const layer = UsageTrackerLive.pipe(
+      Layer.provide(
+        Layer.mergeAll(
+          MockAlerterLive,
+          createMockSubscriptionRepository({
+            usage: usageAt({ userId: user.id, plantIdentifiesCount: 2 }),
+          }),
+          notificationMocks([], { onCreate: recorded.resolve }).repository,
+          createMockUserRepository([user])
+        )
+      )
+    )
+    try {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.withReservation(
+            user.id,
+            'plantIdentifies',
+            Effect.void
+          )
+        }).pipe(
+          Effect.provide(layer),
+          Effect.provideService(Random.Random, rolling(roll))
+        )
+      )
+      return (await recorded.promise).scheduledAt
+    } finally {
+      vi.useRealTimers()
+    }
+  }
+
+  const slotsOverRolls = async (
+    now: Date,
+    dnd: readonly [string, string] | null = null
+  ): Promise<ReadonlyArray<readonly [number, Date]>> => {
+    const slots: Array<readonly [number, Date]> = []
+    for (const roll of ROLLS) slots.push([roll, await slotOf(now, roll, dnd)])
+    return slots
+  }
+
+  const minuteInParis = (slot: Date): number => {
+    const { hour, minute } = DateTime.toParts(
+      withTimeZone(DateTime.makeUnsafe(slot), PARIS)
+    )
+    return hour * 60 + minute
+  }
+
+  it('waits for the next local day once both windows are over', async () => {
+    expect([
+      (await slotOf(SUNDAY_23_30, MORNING)).toISOString(),
+      (await slotOf(SUNDAY_23_30, EVENING)).toISOString(),
+    ]).toEqual(['2026-06-15T05:00:00.000Z', '2026-06-15T18:00:00.000Z'])
+  })
+
+  it('takes the evening window at 09:30, the morning one being over', async () => {
+    expect((await slotOf(SUNDAY_09_30, MORNING)).toISOString()).toBe(
+      '2026-06-14T18:00:00.000Z'
+    )
+  })
+
+  it('never picks a minute already past inside a window under way', async () => {
+    expect(
+      pipe(
+        await slotsOverRolls(SUNDAY_06_30),
+        Array.filter(([, slot]) => slot <= SUNDAY_06_30),
+        Array.map(([roll, slot]) => `roll ${roll}: ${slot.toISOString()}`)
+      )
+    ).toEqual([])
+  })
+
+  it('keeps the next-day slot out of a 22:00-07:00 do-not-disturb', async () => {
+    const [start, end] = ['22:00', '07:00'] as const
+    const faults = Array.flatMap(
+      await slotsOverRolls(SUNDAY_23_30, [start, end]),
+      ([roll, slot]) =>
+        Array.map(
+          Array.filter(
+            [
+              [
+                isInDndWindow(
+                  minuteInParis(slot),
+                  timeToMinutes(start),
+                  timeToMinutes(end)
+                ),
+                'is inside do-not-disturb',
+              ],
+              [slot <= SUNDAY_23_30, 'is not after now'],
+            ] as const,
+            ([broken]) => broken
+          ),
+          ([, rule]) => `roll ${roll}: ${slot.toISOString()} ${rule}`
+        )
+    )
+
+    expect(faults).toEqual([])
+    expect(
+      (await slotOf(SUNDAY_23_30, MORNING, [start, end])).toISOString()
+    ).toBe('2026-06-15T05:30:00.000Z')
+  })
+
+  it('records the notice at now when do-not-disturb covers both windows', async () => {
+    expect(
+      (await slotOf(SUNDAY_23_30, MORNING, ['05:00', '23:00'])).toISOString()
+    ).toBe(SUNDAY_23_30.toISOString())
   })
 })
