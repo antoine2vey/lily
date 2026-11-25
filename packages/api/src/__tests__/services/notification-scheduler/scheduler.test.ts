@@ -1640,46 +1640,52 @@ describe('Notification Scheduler', () => {
       expect(enqueuedMessages).toHaveLength(1)
     })
 
-    it('should enqueue notifications when user has DND enabled but current time is outside window', async () => {
-      vi.useFakeTimers({ toFake: ['Date'] })
-      vi.setSystemTime(new Date('2026-06-15T03:00:30.000Z'))
-      const enqueuedMessages: {
-        topic: NotificationTopic
-        message: QueueMessage
-      }[] = []
+    it.each([
+      { clock: '02:59:59', enqueued: 1 },
+      { clock: '03:00:00', enqueued: 0 },
+      { clock: '03:00:59', enqueued: 0 },
+      { clock: '03:01:00', enqueued: 1 },
+    ])(
+      'enqueues $enqueued at $clock UTC for a 03:00-03:01 DND window',
+      async ({ clock, enqueued }) => {
+        const now = new Date(`2026-06-15T${clock}.000Z`)
+        vi.useFakeTimers({ toFake: ['Date'] })
+        vi.setSystemTime(now)
+        const enqueuedMessages: {
+          topic: NotificationTopic
+          message: QueueMessage
+        }[] = []
 
-      // DND 01:00-02:00 UTC. Current time is now (probably not 1-2 AM).
-      // Use a very narrow window that's unlikely to match current time.
-      const user = createTestUser({
-        id: 'user-1',
-        doNotDisturb: true,
-        careReminders: true,
-        timezone: ZoneName.make('UTC'),
-        doNotDisturbStart: '03:00',
-        doNotDisturbEnd: '03:01',
-      })
+        const user = createTestUser({
+          id: 'user-1',
+          doNotDisturb: true,
+          careReminders: true,
+          timezone: ZoneName.make('UTC'),
+          doNotDisturbStart: '03:00',
+          doNotDisturbEnd: '03:01',
+        })
 
-      const pendingNotification = createTestNotification({
-        id: 'dnd-outside-1',
-        type: 'watering_reminder',
-        status: 'pending',
-        scheduledAt: new Date(Date.now() - 60000),
-        userId: 'user-1',
-      })
+        const pendingNotification = createTestNotification({
+          id: 'dnd-edge-1',
+          type: 'watering_reminder',
+          status: 'pending',
+          scheduledAt: new Date(now.getTime() - 60000),
+          userId: 'user-1',
+        })
 
-      try {
-        await runPollAndEnqueue(
-          [pendingNotification],
-          [user],
-          (topic, message) => enqueuedMessages.push({ topic, message })
-        )
-      } finally {
-        vi.useRealTimers()
+        try {
+          await runPollAndEnqueue(
+            [pendingNotification],
+            [user],
+            (topic, message) => enqueuedMessages.push({ topic, message })
+          )
+        } finally {
+          vi.useRealTimers()
+        }
+
+        expect(enqueuedMessages).toHaveLength(enqueued)
       }
-
-      // This test may be flaky if run exactly at 03:00 UTC but that's extremely unlikely
-      expect(enqueuedMessages).toHaveLength(1)
-    })
+    )
 
     it('should skip notifications for different users where one has DND and one does not', async () => {
       // Noon UTC sits inside the 00:00-23:59 window on any day.
