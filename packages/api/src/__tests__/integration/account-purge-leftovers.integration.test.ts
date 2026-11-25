@@ -306,5 +306,24 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'outbox:canopy:always-fails',
       ])
     })
+
+    it('deletes the events and the dead letters of the user when the purge is given the id in upper case', async () => {
+      const purged = await user('sam')
+      expect((await deliver(purged, `expiration-${purged}`))._tag).toBe(
+        'Success'
+      )
+      await poison(`not json ${purged} \u0000`)
+      expect([
+        await webhookEventsOf(purged),
+        await deadLettersNaming(purged),
+      ]).toEqual([[`expiration-${purged}`], ['unknown']])
+
+      expect(Exit.isSuccess(await purge(purged.toUpperCase()))).toBe(true)
+
+      expect([
+        await webhookEventsOf(purged),
+        await deadLettersNaming(purged),
+      ]).toEqual([[], []])
+    })
   }
 )
