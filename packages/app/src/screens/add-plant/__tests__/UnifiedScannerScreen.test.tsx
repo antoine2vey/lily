@@ -25,8 +25,9 @@ jest.mock('expo-image-manipulator', () => ({
   SaveFormat: { JPEG: 'jpeg' },
 }))
 
+const mockCreatePlant = jest.fn()
 jest.mock('@/hooks/useCreatePlant', () => ({
-  useCreatePlant: () => ({ mutate: jest.fn(), isPending: false }),
+  useCreatePlant: () => ({ mutate: mockCreatePlant, isPending: false }),
 }))
 
 jest.mock('@/hooks/useMyCanopy', () => ({
@@ -101,9 +102,24 @@ const pressGallery = () =>
     fireEvent.press(screen.getByText('Choose from gallery'))
   })
 
+const quickAddIdentified = async (petToxicityRating: number | null) => {
+  mockDetectPlant.mockResolvedValue({
+    name: 'Monstera',
+    petToxicityRating,
+    imageUrl: 'https://example.test/monstera.jpg',
+  })
+  const picker = holdPickerOpen()
+  render(<UnifiedScannerScreen />)
+  await pressGallery()
+  await picker.pick('file://picked.heic')
+  fireEvent.press(screen.getByText('Add to Collection'))
+  return mockCreatePlant.mock.calls[0][0].payload
+}
+
 describe('UnifiedScannerScreen', () => {
   beforeEach(() => {
     mockDetectPlant.mockReset().mockResolvedValue({ name: 'Monstera' })
+    mockCreatePlant.mockReset()
     jest.mocked(ImagePicker.launchImageLibraryAsync).mockClear()
     jest
       .mocked(ImagePicker.launchImageLibraryAsync)
@@ -241,5 +257,19 @@ describe('UnifiedScannerScreen', () => {
     expect(mockDetectPlant).not.toHaveBeenCalled()
     fireEvent(nativeScanner(), 'frameAnalysis', frame(5))
     expect(captureGeneration()).toBe(1)
+  })
+
+  describe('quick add', () => {
+    it('creates a plant that is not pet-safe when the identification has no pet toxicity', async () => {
+      const payload = await quickAddIdentified(null)
+
+      expect(payload.petToxicityRating).toBe(100)
+    })
+
+    it('keeps the pet toxicity the identification gives', async () => {
+      const payload = await quickAddIdentified(20)
+
+      expect(payload.petToxicityRating).toBe(20)
+    })
   })
 })

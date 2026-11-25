@@ -8,7 +8,12 @@ import {
   type MeasureAxis,
   type PhotoCapturedEvent,
 } from '@lily/plant-scanner'
-import { LUMINOSITY_LEVELS, luxToLuminosityLevel, Rating } from '@lily/shared'
+import {
+  LUMINOSITY_LEVELS,
+  luxToLuminosityLevel,
+  PET_TOXICITY_RATING,
+  Rating,
+} from '@lily/shared'
 import { Effect, Match, Option, pipe, Schema } from 'effect'
 import { Image } from 'expo-image'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
@@ -330,7 +335,7 @@ export function UnifiedScannerScreen() {
           ),
           petToxicityRating: Option.getOrElse(
             ratingOf(result.petToxicityRating),
-            () => Rating.make(50)
+            () => PET_TOXICITY_RATING.notMarkedSafe
           ),
           imageUrl: result.imageUrl,
           potWidthCm: confirmedPot?.widthCm,
