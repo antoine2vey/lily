@@ -1,3 +1,5 @@
+import { pinAccounts } from '@lily/api/kernel/locks'
+import type { Transaction } from '@lily/api/kernel/transact'
 import { getPaginationParams } from '@lily/api/repositories/helpers/pagination'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import {
@@ -83,6 +85,14 @@ export interface ISubscriptionRepository {
     ReadonlyArray<typeof userSubscriptions.$inferSelect>,
     SqlError
   >
+
+  /**
+   * Holds the account until the transaction ends, so no deletion of it can
+   * start between two writes that name it. False when the account is gone.
+   */
+  readonly holdAccount: (
+    userId: string
+  ) => Effect.Effect<boolean, SqlError, Transaction>
 
   // Records a RevenueCat event id. False when the id was already recorded.
   readonly claimWebhookEvent: (
@@ -214,6 +224,15 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .from(userSubscriptions)
           .where(isNotNull(userSubscriptions.externalSubscriptionId))
       ).pipe(Effect.withSpan('SubscriptionRepository.findStoreSubscriptions')),
+
+      holdAccount: Effect.fn('SubscriptionRepository.holdAccount')(function* (
+        userId: string
+      ) {
+        const held = yield* pinAccounts(
+          db.select({ id: users.id }).from(users).where(eq(users.id, userId))
+        )
+        return Array.isReadonlyArrayNonEmpty(held)
+      }),
 
       claimWebhookEvent: Effect.fn('SubscriptionRepository.claimWebhookEvent')(
         function* (event: RevenueCatWebhookEventRecord) {

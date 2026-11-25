@@ -1,5 +1,5 @@
 import { lockStoreSync } from '@lily/api/kernel/locks'
-import { transactQuietly } from '@lily/api/kernel/transact'
+import { type Transaction, transactQuietly } from '@lily/api/kernel/transact'
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import {
   decideStoreSync,
@@ -15,6 +15,7 @@ import type { SqlError } from 'effect/sql/SqlError'
 
 export type StoreSyncOutcome =
   | 'no_store_subscription'
+  | 'no_account'
   | 'kept_gift'
   | 'unchanged'
   | 'applied'
@@ -58,11 +59,22 @@ const applyStoreState = (params: {
   readonly state: Option.Option<StoreSubscriptionState>
   readonly externalSubscriptionId: Option.Option<string>
   readonly source: string
-}): Effect.Effect<StoreSyncOutcome, SqlError, SubscriptionRepository> =>
+}): Effect.Effect<
+  StoreSyncOutcome,
+  SqlError,
+  SubscriptionRepository | Transaction
+> =>
   Effect.gen(function* () {
     const subRepo = yield* SubscriptionRepository
     if (Option.isNone(params.state)) return 'no_store_subscription' as const
     const state = params.state.value
+
+    // Held before the first write. A deletion of the account that starts
+    // after the row is updated holds the account and waits for that row, and
+    // the event insert would then wait for the account.
+    if (!(yield* subRepo.holdAccount(params.userId))) {
+      return 'no_account' as const
+    }
 
     const existing = yield* subRepo.findByUserId(params.userId)
     const write = toSubscriptionWrite(
