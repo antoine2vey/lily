@@ -314,14 +314,19 @@ export const NotificationDeliveryLive = Layer.effect(
       releaseUnclaimedOlderThan: Effect.fn(
         'NotificationDelivery.releaseUnclaimedOlderThan'
       )(function* (queuedBefore: Date) {
+        const locked = yield* lockedInIdOrder(
+          db,
+          and(
+            eq(notifications.status, 'queued'),
+            isNull(notifications.deliveryMessageId),
+            lt(notifications.queuedAt, queuedBefore)
+          )
+        )
         const rows = yield* transitionEach(db, 'Notification', {
           from: ['queued'],
           to: 'pending',
           also: { queuedAt: null },
-          where: and(
-            isNull(notifications.deliveryMessageId),
-            lt(notifications.queuedAt, queuedBefore)
-          ),
+          where: inArray(notifications.id, locked),
         })
         return Array.length(rows)
       }),
