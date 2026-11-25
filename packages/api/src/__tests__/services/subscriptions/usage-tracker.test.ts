@@ -48,9 +48,11 @@ const usageAt = (
 const createTestLayer = (options: {
   usage?: typeof subscriptionUsage.$inferSelect
   tier?: 'free' | 'paid'
+  settlingFails?: boolean
 }) => {
   const reserved: UsageField[] = []
   const released: UsageField[] = []
+  const charged: UsageField[] = []
 
   const notifRepo = new Proxy({} as INotificationRepository, {
     get: () => () => Effect.succeed(null),
@@ -67,7 +69,9 @@ const createTestLayer = (options: {
           usage: options.usage,
           tier: options.tier,
           onReserveUsage: (_userId, field) => reserved.push(field),
-          onReleaseUsage: (_usageId, field) => released.push(field),
+          settlingFails: options.settlingFails,
+          onReleaseUsage: (_reservationId, field) => released.push(field),
+          onChargeUsage: (_reservationId, field) => charged.push(field),
         }),
         Layer.succeed(NotificationRepository, notifRepo),
         Layer.succeed(UserRepository, userRepo)
@@ -75,13 +79,13 @@ const createTestLayer = (options: {
     )
   )
 
-  return { layer, reserved, released }
+  return { layer, reserved, released, charged }
 }
 
 describe('UsageTracker', () => {
   describe('withReservation', () => {
     it('keeps the unit when the body succeeds', async () => {
-      const { layer, reserved, released } = createTestLayer({
+      const { layer, reserved, released, charged } = createTestLayer({
         usage: usageAt({ aiChatsCount: 4 }),
       })
 
@@ -99,6 +103,47 @@ describe('UsageTracker', () => {
       expect(result).toBe('answered')
       expect(reserved).toEqual(['aiChats'])
       expect(released).toEqual([])
+      expect(charged).toEqual(['aiChats'])
+    })
+
+    it('answers with the result when the charge cannot be written', async () => {
+      const { layer } = createTestLayer({
+        usage: usageAt(),
+        settlingFails: true,
+      })
+
+      const result = await Effect.runPromise(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.withReservation(
+            'user-1',
+            'cardScans',
+            Effect.succeed('scanned')
+          )
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(result).toBe('scanned')
+    })
+
+    it('surfaces the error of the body when the refund cannot be written', async () => {
+      const { layer } = createTestLayer({
+        usage: usageAt(),
+        settlingFails: true,
+      })
+
+      const exit = await Effect.runPromiseExit(
+        Effect.gen(function* () {
+          const tracker = yield* UsageTracker
+          return yield* tracker.withReservation(
+            'user-1',
+            'plantIdentifies',
+            Effect.fail({ _tag: 'OpenAIError' as const })
+          )
+        }).pipe(Effect.provide(layer))
+      )
+
+      expect(failureOf(exit)._tag).toBe('OpenAIError')
     })
 
     it('still counts usage for a paid user with no limit', async () => {
@@ -287,7 +332,7 @@ describe('UsageTracker', () => {
       })
 
     it('keeps the unit when the turn bills a charge', async () => {
-      const { layer, reserved, released } = createTestLayer({
+      const { layer, reserved, released, charged } = createTestLayer({
         usage: usageAt(),
       })
 
@@ -302,6 +347,7 @@ describe('UsageTracker', () => {
       expect(billing).toBe('charge')
       expect(reserved).toEqual(['aiChats'])
       expect(released).toEqual([])
+      expect(charged).toEqual(['aiChats'])
     })
 
     it('gives the unit back once when the turn bills a refund', async () => {

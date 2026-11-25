@@ -53,6 +53,7 @@ import {
   SubscriptionWebhooksApiLive,
 } from '@lily/api/services/subscriptions/handlers'
 import { startSubscriptionReconciliationScheduler } from '@lily/api/services/subscriptions/reconciliation-scheduler'
+import { startUsageReservationSweep } from '@lily/api/services/subscriptions/reservation-sweep'
 import { startTipsScheduler } from '@lily/api/services/tips-scheduler/scheduler'
 import { UsersApiLive } from '@lily/api/services/user/handlers'
 import { UsernameApiLive } from '@lily/api/services/username/handlers'
@@ -121,6 +122,10 @@ const SubscriptionReconciliationSchedulerLive = Layer.effectDiscard(
   startSubscriptionReconciliationScheduler
 )
 
+const UsageReservationSweepLive = Layer.effectDiscard(
+  startUsageReservationSweep
+)
+
 const LiveActivitySubscriberLive = Layer.effectDiscard(
   Effect.gen(function* () {
     yield* startLiveActivitySubscriber
@@ -161,6 +166,7 @@ const AllSchedulersLive = Layer.mergeAll(
   LiveActivitySubscriberLive,
   VacationSchedulerLive,
   SubscriptionReconciliationSchedulerLive,
+  UsageReservationSweepLive,
   Layer.effectDiscard(startPushReceiptScheduler)
 )
 

@@ -1,6 +1,9 @@
 import { users } from '@lily/db/schema/users'
-import { relations } from 'drizzle-orm'
+import { UsageField } from '@lily/shared'
+import { relations, sql } from 'drizzle-orm'
 import {
+  check,
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -120,6 +123,46 @@ export const subscriptionUsage = pgTable(
     uniqueIndex('subscription_usage_user_period_idx').on(
       table.userId,
       table.periodStart
+    ),
+  ]
+)
+
+export const USAGE_RESERVATION_STATES = [
+  'reserved',
+  'charged',
+  'refunded',
+] as const
+
+// One row per unit `subscription_usage` counts for work still running. The
+// row leaves `reserved` once, and only a row still `reserved` can be refunded.
+export const usageReservations = pgTable(
+  'usage_reservations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    usageId: uuid('usage_id')
+      .notNull()
+      .references(() => subscriptionUsage.id, { onDelete: 'cascade' }),
+    field: text('field', { enum: UsageField.literals }).notNull(),
+    state: text('state', { enum: USAGE_RESERVATION_STATES })
+      .notNull()
+      .default('reserved'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    settledAt: timestamp('settled_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('usage_reservations_usage_id_idx').on(table.usageId),
+    index('usage_reservations_reserved_idx')
+      .on(table.createdAt)
+      .where(sql`${table.state} = 'reserved'`),
+    check(
+      'usage_reservations_field_known',
+      sql`${table.field} IN ('aiChats', 'cardScans', 'plantIdentifies')`
+    ),
+    check(
+      'usage_reservations_state_known',
+      sql`${table.state} IN ('reserved', 'charged', 'refunded')`
     ),
   ]
 )

@@ -3,8 +3,8 @@ import type {
   ISubscriptionRepository,
 } from '@lily/api/repositories/subscription.repository'
 import {
+  ReservationId,
   SubscriptionRepository,
-  UsageId,
 } from '@lily/api/repositories/subscription.repository'
 import type { subscriptionUsage, userSubscriptions } from '@lily/db/schema'
 import type {
@@ -25,6 +25,14 @@ const freeTierConfig: TierConfig = {
   maxCardScansMonthly: 5,
   maxPlantIdentifiesMonthly: 3,
 }
+
+const connectionLost = () =>
+  new SqlError({
+    reason: new UnknownError({
+      cause: new Error('connection lost'),
+      message: 'connection lost',
+    }),
+  })
 
 // Paid tier config (unlimited = null)
 const paidTierConfig: TierConfig = {
@@ -54,7 +62,10 @@ interface MockSubscriptionOptions {
   // The first `create` calls fail with a SqlError, then writes succeed.
   failingCreates?: number | undefined
   onReserveUsage?: (userId: string, field: UsageField) => void
-  onReleaseUsage?: (usageId: UsageId, field: UsageField) => void
+  onReleaseUsage?: (reservationId: ReservationId, field: UsageField) => void
+  onChargeUsage?: (reservationId: ReservationId, field: UsageField) => void
+  // `releaseUsage` and `chargeUsage` fail with a SqlError.
+  settlingFails?: boolean | undefined
   subscriptionsByUser?: Record<string, typeof userSubscriptions.$inferSelect>
   // The rows of `subscription_tiers`. A tier with no row reads as the free
   // default, as in the real repository.
@@ -112,6 +123,27 @@ export const createMockSubscriptionRepository = (
   const tierConfig = tier === 'paid' ? paidTierConfig : freeTierConfig
   const byUser = options.subscriptionsByUser
 
+  const reserved = new Map<ReservationId, UsageField>()
+  let taken = 0
+  const leaveReserved = (
+    reservationId: ReservationId,
+    onLeft: MockSubscriptionOptions['onReleaseUsage']
+  ) =>
+    Effect.suspend(() => {
+      if (options.settlingFails) return Effect.fail(connectionLost())
+      const field = Option.fromNullishOr(reserved.get(reservationId))
+      reserved.delete(reservationId)
+      return Effect.succeed(
+        Option.match(field, {
+          onNone: () => false,
+          onSome: (left) => {
+            onLeft?.(reservationId, left)
+            return true
+          },
+        })
+      )
+    })
+
   const repo: ISubscriptionRepository = {
     findByUserId: (userId) =>
       Effect.succeed(
@@ -140,14 +172,7 @@ export const createMockSubscriptionRepository = (
     create: (data) => {
       if (failingCreates > 0) {
         failingCreates--
-        return Effect.fail(
-          new SqlError({
-            reason: new UnknownError({
-              cause: new Error('connection lost'),
-              message: 'connection lost',
-            }),
-          })
-        )
+        return Effect.fail(connectionLost())
       }
       if (options.onCreate) {
         options.onCreate(data)
@@ -197,28 +222,32 @@ export const createMockSubscriptionRepository = (
       )
       if (limit !== null && current >= limit) return Effect.succeed(null)
       options.onReserveUsage?.(userId, field)
+      taken += 1
+      const reservationId = ReservationId.make(`reservation-${taken}`)
+      reserved.set(reservationId, field)
       return Effect.succeed({
-        userId,
-        periodStart: new Date(),
-        periodEnd: new Date(),
-        aiChatsCount: 0,
-        cardScansCount: 0,
-        plantIdentifiesCount: 0,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        ...usage,
-        id: UsageId.make(
-          pipe(
-            Option.fromNullishOr(usage),
-            Option.map((u) => u.id),
-            Option.getOrElse(() => 'usage-1')
-          )
-        ),
-        [countKey]: current + 1,
+        reservationId,
+        usage: {
+          id: 'usage-1',
+          userId,
+          periodStart: new Date(),
+          periodEnd: new Date(),
+          aiChatsCount: 0,
+          cardScansCount: 0,
+          plantIdentifiesCount: 0,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          ...usage,
+          [countKey]: current + 1,
+        },
       })
     },
-    releaseUsage: (usageId, field) =>
-      Effect.sync(() => options.onReleaseUsage?.(usageId, field)),
+    releaseUsage: (reservationId) =>
+      leaveReserved(reservationId, options.onReleaseUsage),
+    chargeUsage: (reservationId) =>
+      leaveReserved(reservationId, options.onChargeUsage),
+    findReservedBefore: () => Effect.succeed([]),
+    deleteSettledReservations: () => Effect.succeed(0),
     findGiftEvents: () => Effect.succeed({ items: [], total: 0 }),
     logEvent: (userId, eventType, metadata) =>
       Effect.sync(() => {

@@ -39,9 +39,11 @@ packages/api/models/usage-reservation.qnt usage_refund_current_month noUnitTaken
 packages/api/models/usage-reservation.qnt usage_shutdown_drops noChargeWithoutReply breaks # before 601e6752
 packages/api/models/usage-reservation.qnt usage_stores_refused refusedTurnStoresNothing breaks # before 148
 packages/api/models/usage-reservation.qnt usage_unmetered repliesWithinPlan breaks # before 147
-packages/api/models/usage-reservation.qnt usage_hard_kill noChargeWithoutReply breaks # 372 gap 1
-packages/api/models/usage-reservation.qnt usage_release_fails noChargeWithoutReply breaks # 372 gap 2
-packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithoutReply breaks # 372 gap 3
+packages/api/models/usage-reservation.qnt usage_hard_kill noChargeWithoutReply holds
+packages/api/models/usage-reservation.qnt usage_release_fails noChargeWithoutReply holds
+packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithoutReply holds
+packages/api/models/usage-reservation.qnt usage_slow_turn neverOverLimit,repliesWithinPlan,noChargeWithoutReply,noUnitTakenByAnotherRefund,settledExactlyOnce,refusedTurnStoresNothing holds
+packages/api/models/usage-reservation.qnt usage_no_sweep noChargeWithoutReply breaks # before 372
 packages/api/models/queue-claims.qnt queue_current unackedDeliveryStaysInRedis,pushedAtMostOnce,deadLetteredOnce,alertedOnce,alertOnlyAfterDeadLetter,failedRowHasItsHoldersDeadLetter,failedRowIsReported holds
 packages/api/models/queue-claims.qnt queue_before_82 pushedAtMostOnce breaks # before 82
 packages/api/models/queue-claims.qnt queue_read_then_mark pushedAtMostOnce breaks # before 82, the scheduler half alone

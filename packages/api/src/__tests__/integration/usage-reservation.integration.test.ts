@@ -36,6 +36,7 @@ import {
   ConfigProvider,
   Effect,
   Exit,
+  identity,
   Layer,
   ManagedRuntime,
   Option,
@@ -47,6 +48,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 const { Pool } = pg
 
 const PARALLELISM = 20
+
+const endOfNextMonth = () => {
+  const now = new Date()
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 1))
+}
 
 const countSuccesses = <A, E>(exits: ReadonlyArray<Exit.Exit<A, E>>) =>
   Arr.length(Arr.filter(exits, Exit.isSuccess))
@@ -166,7 +172,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     describe('SubscriptionRepository.reserveUsage', () => {
       it('grants at most the limit across parallel reservations', async () => {
-        await db.execute(sql`TRUNCATE TABLE subscription_usage`)
+        await db.execute(sql`TRUNCATE TABLE subscription_usage CASCADE`)
         const limit = 5
 
         const results = await runtime.runPromise(
@@ -194,7 +200,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       })
 
       it('never refuses when the limit is null and still counts', async () => {
-        await db.execute(sql`TRUNCATE TABLE subscription_usage`)
+        await db.execute(sql`TRUNCATE TABLE subscription_usage CASCADE`)
 
         const results = await runtime.runPromise(
           Effect.gen(function* () {
@@ -215,8 +221,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(row?.cardScansCount).toBe(PARALLELISM)
       })
 
-      it('releaseUsage frees a slot and floors at zero', async () => {
-        await db.execute(sql`TRUNCATE TABLE subscription_usage`)
+      it('releaseUsage frees a slot once', async () => {
+        await db.execute(sql`TRUNCATE TABLE subscription_usage CASCADE`)
 
         const afterRelease = await runtime.runPromise(
           Effect.gen(function* () {
@@ -229,19 +235,95 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               'plantIdentifies',
               1
             )
-            yield* repo.releaseUsage(reserved.id, 'plantIdentifies')
-            yield* repo.releaseUsage(reserved.id, 'plantIdentifies')
+            const first = yield* repo.releaseUsage(reserved.reservationId)
+            const second = yield* repo.releaseUsage(reserved.reservationId)
             const granted = yield* repo.reserveUsage(
               userId,
               'plantIdentifies',
               1
             )
-            return { refused, granted }
+            return { refused, first, second, granted }
           })
         )
 
         expect(afterRelease.refused).toBeNull()
-        expect(afterRelease.granted?.plantIdentifiesCount).toBe(1)
+        expect([afterRelease.first, afterRelease.second]).toEqual([true, false])
+        expect(afterRelease.granted?.usage.plantIdentifiesCount).toBe(1)
+      })
+
+      it('lets exactly one of a racing refund and charge take each reservation', async () => {
+        await db.execute(sql`TRUNCATE TABLE subscription_usage CASCADE`)
+
+        const races = await runtime.runPromise(
+          Effect.gen(function* () {
+            const repo = yield* SubscriptionRepository
+            const reserved = Arr.getSomes(
+              yield* Effect.forEach(Arr.makeBy(PARALLELISM, identity), () =>
+                Effect.map(
+                  repo.reserveUsage(userId, 'aiChats', null),
+                  Option.fromNullishOr
+                )
+              )
+            )
+            return yield* Effect.forEach(
+              reserved,
+              ({ reservationId }, index) =>
+                Effect.all(
+                  index % 2 === 0
+                    ? {
+                        refunded: repo.releaseUsage(reservationId),
+                        charged: repo.chargeUsage(reservationId),
+                      }
+                    : {
+                        charged: repo.chargeUsage(reservationId),
+                        refunded: repo.releaseUsage(reservationId),
+                      },
+                  { concurrency: 'unbounded' }
+                ),
+              { concurrency: 'unbounded' }
+            )
+          })
+        )
+        const [row] = await db
+          .select()
+          .from(schema.subscriptionUsage)
+          .where(eq(schema.subscriptionUsage.userId, userId))
+
+        expect(races).toHaveLength(PARALLELISM)
+        expect(
+          Arr.filter(races, (race) => race.refunded === race.charged),
+          'reservations both moves took, or neither'
+        ).toEqual([])
+        expect(row?.aiChatsCount).toBe(
+          Arr.filter(races, (race) => race.charged).length
+        )
+      })
+
+      it('deleteSettledReservations keeps open months and reserved rows', async () => {
+        await db.execute(sql`TRUNCATE TABLE subscription_usage CASCADE`)
+
+        const deleted = await runtime.runPromise(
+          Effect.gen(function* () {
+            const repo = yield* SubscriptionRepository
+            const settled = yield* Effect.fromNullishOr(
+              yield* repo.reserveUsage(userId, 'cardScans', null)
+            )
+            yield* repo.reserveUsage(userId, 'cardScans', null)
+            yield* repo.chargeUsage(settled.reservationId)
+            return {
+              whileOpen: yield* repo.deleteSettledReservations(new Date()),
+              onceClosed: yield* repo.deleteSettledReservations(
+                endOfNextMonth()
+              ),
+            }
+          })
+        )
+        const left = await db
+          .select({ state: schema.usageReservations.state })
+          .from(schema.usageReservations)
+
+        expect(deleted).toEqual({ whileOpen: 0, onceClosed: 1 })
+        expect(left).toEqual([{ state: 'reserved' }])
       })
     })
 

@@ -51,7 +51,7 @@ export const createMockUsageTracker = (
         createMockSubscriptionRepository({
           usage: options.limitReached ? freeLimitsReached : undefined,
           onReserveUsage: (_userId, field) => options.onReserve?.(field),
-          onReleaseUsage: (_usageId, field) => options.onRelease?.(field),
+          onReleaseUsage: (_reservationId, field) => options.onRelease?.(field),
         }),
         Layer.succeed(NotificationRepository, notifRepo),
         Layer.succeed(UserRepository, userRepo)
