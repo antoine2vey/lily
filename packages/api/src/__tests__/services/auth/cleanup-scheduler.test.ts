@@ -1,4 +1,5 @@
 import { MagicLinkRepository } from '@lily/api/repositories/magic-link.repository'
+import { OAuthCodeRepository } from '@lily/api/repositories/oauth-code.repository'
 import { RefreshTokenRepository } from '@lily/api/repositories/refresh-token.repository'
 import { startAuthCleanupScheduler } from '@lily/api/services/auth/cleanup-scheduler'
 import { type Duration, Effect, Layer, References } from 'effect'
@@ -6,7 +7,7 @@ import { TestClock } from 'effect/testing'
 import { describe, expect, it } from 'vitest'
 
 const signInTables = () => {
-  const sweeps = { magicLinks: 0, refreshTokens: 0 }
+  const sweeps = { magicLinks: 0, refreshTokens: 0, oauthCodes: 0 }
 
   const layer = Layer.mergeAll(
     Layer.mock(MagicLinkRepository, {
@@ -18,6 +19,12 @@ const signInTables = () => {
     Layer.mock(RefreshTokenRepository, {
       deleteExpired: Effect.sync(() => {
         sweeps.refreshTokens++
+        return 0
+      }),
+    }),
+    Layer.mock(OAuthCodeRepository, {
+      deleteExpired: Effect.sync(() => {
+        sweeps.oauthCodes++
         return 0
       }),
     })
@@ -46,12 +53,16 @@ const runApiFor = (
   )
 
 describe('auth-cleanup scheduler', () => {
-  it('deletes expired magic links and refresh tokens as soon as the API starts', async () => {
+  it('deletes expired magic links, refresh tokens and OAuth codes as soon as the API starts', async () => {
     const tables = signInTables()
 
     await runApiFor(tables.layer, '1 second')
 
-    expect(tables.sweeps).toEqual({ magicLinks: 1, refreshTokens: 1 })
+    expect(tables.sweeps).toEqual({
+      magicLinks: 1,
+      refreshTokens: 1,
+      oauthCodes: 1,
+    })
   })
 
   it('deletes them again every hour', async () => {
@@ -59,6 +70,10 @@ describe('auth-cleanup scheduler', () => {
 
     await runApiFor(tables.layer, '2 hours')
 
-    expect(tables.sweeps).toEqual({ magicLinks: 3, refreshTokens: 3 })
+    expect(tables.sweeps).toEqual({
+      magicLinks: 3,
+      refreshTokens: 3,
+      oauthCodes: 3,
+    })
   })
 })

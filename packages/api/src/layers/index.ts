@@ -29,6 +29,7 @@ import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repos
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
 import { NotificationInboxLive } from '@lily/api/repositories/notification-inbox.repository'
+import { OAuthCodeRepositoryLive } from '@lily/api/repositories/oauth-code.repository'
 import { OAuthIdentityRepositoryLive } from '@lily/api/repositories/oauth-identity.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { PlantCatalogRepositoryLive } from '@lily/api/repositories/plant-catalog.repository'
@@ -112,6 +113,7 @@ const RepositoriesGroup1 = Layer.mergeAll(
   FollowRepositoryLive,
   IngestJobRepositoryLive,
   MagicLinkRepositoryLive,
+  OAuthCodeRepositoryLive,
   NotificationRepositoryLive,
   PlantRepositoryLive,
   ProcessedChunkRepositoryLive,

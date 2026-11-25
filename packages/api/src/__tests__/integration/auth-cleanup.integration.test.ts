@@ -1,4 +1,5 @@
 import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
+import { OAuthCodeRepositoryLive } from '@lily/api/repositories/oauth-code.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { deleteExpiredSignInRows } from '@lily/api/services/auth/cleanup-scheduler'
 import { DrizzleLive } from '@lily/db'
@@ -26,6 +27,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const RepositoriesLive = Layer.mergeAll(
       MagicLinkRepositoryLive,
+      OAuthCodeRepositoryLive,
       RefreshTokenRepositoryLive
     ).pipe(
       Layer.provide(DrizzleLive),
@@ -44,6 +46,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .from(schema.magicLinks)
         .where(eq(schema.magicLinks.email, email))
       return rows.map((row) => row.token.replace(`${run}-`, '')).sort()
+    }
+
+    const oauthCodesLeft = async () => {
+      const rows = await db
+        .select({ code: schema.oauthAuthorizationCodes.authorizationCode })
+        .from(schema.oauthAuthorizationCodes)
+        .where(eq(schema.oauthAuthorizationCodes.clientId, run))
+      return rows.map((row) => row.code.replace(`${run}-`, '')).sort()
     }
 
     const refreshTokensLeft = async () => {
@@ -101,12 +111,35 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdAt: fromNow(-40 * DAY),
         },
       ])
+
+      await db
+        .insert(schema.oauthClients)
+        .values({ clientId: run, redirectUris: ['https://x.test'] })
+      await db.insert(schema.oauthAuthorizationCodes).values(
+        [
+          { authorizationCode: `${run}-live`, expiresAt: fromNow(60 * 1000) },
+          {
+            authorizationCode: `${run}-expired`,
+            expiresAt: fromNow(-60 * 1000),
+          },
+        ].map((code) => ({
+          ...code,
+          clientId: run,
+          userId,
+          redirectUri: 'https://x.test',
+          codeChallenge: 'challenge',
+          scopes: ['plants:read'],
+        }))
+      )
     })
 
     afterAll(async () => {
       await db
         .delete(schema.magicLinks)
         .where(eq(schema.magicLinks.email, email))
+      await db
+        .delete(schema.oauthClients)
+        .where(eq(schema.oauthClients.clientId, run))
       await db.execute(sql`DELETE FROM users WHERE id = ${userId}`)
       await pool.end()
     })
@@ -123,6 +156,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         'old-but-not-expired',
         'revoked-not-expired',
       ])
+      expect(await oauthCodesLeft()).toEqual(['live'])
     })
   }
 )

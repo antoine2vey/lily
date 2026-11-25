@@ -9,6 +9,7 @@ import { notificationMocks } from '@lily/api/__tests__/mocks/notification-table'
 import { MockOutboxLive } from '@lily/api/__tests__/mocks/outbox'
 import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repository'
 import { MockSqlClientLive } from '@lily/api/__tests__/mocks/sql-client'
+import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { deleteUser } from '@lily/api/services/admin/endpoints/delete-user'
 import { AdminUser } from '@lily/api/services/admin/middleware'
@@ -41,7 +42,8 @@ const mockAdminLayer = Layer.mergeAll(
   createMockPlantRepository({ plants: [] }),
   MockSqlClientLive,
   MockOutboxLive,
-  NoStoredPhotosLive
+  NoStoredPhotosLive,
+  createMockSubscriptionRepository()
 )
 
 describe('deleteUser', () => {

@@ -22,12 +22,16 @@ import { CarePlanRepositoryLive } from '@lily/api/repositories/care-plan.reposit
 import { CareScheduleRepositoryLive } from '@lily/api/repositories/care-schedule.repository'
 import { DelegationRepositoryLive } from '@lily/api/repositories/delegation.repository'
 import { DeviceTokenRepositoryLive } from '@lily/api/repositories/device-token.repository'
+import { MagicLinkRepositoryLive } from '@lily/api/repositories/magic-link.repository'
 import { NotificationRepositoryLive } from '@lily/api/repositories/notification.repository'
 import { NotificationDeliveryLive } from '@lily/api/repositories/notification-delivery.repository'
+import { OAuthCodeRepositoryLive } from '@lily/api/repositories/oauth-code.repository'
 import { PlantRepositoryLive } from '@lily/api/repositories/plant.repository'
 import { RefreshTokenRepositoryLive } from '@lily/api/repositories/refresh-token.repository'
 import { RoomRepositoryLive } from '@lily/api/repositories/room.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
+import { deleteExpiredSignInRows } from '@lily/api/services/auth/cleanup-scheduler'
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { releaseAccount } from '@lily/api/services/user/helpers/release-account'
 import { DrizzleLive, PgLive } from '@lily/db'
@@ -65,12 +69,15 @@ const BaseLive = Layer.mergeAll(
   CareReadsLive,
   DelegationRepositoryLive,
   DeviceTokenRepositoryLive,
+  MagicLinkRepositoryLive,
   NotificationRepositoryLive,
+  OAuthCodeRepositoryLive,
   ReminderStoreLive,
   NotificationDeliveryLive,
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
+  SubscriptionRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 
@@ -249,22 +256,8 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
     )
     return eq(schema.chatMessages.id, row.id)
   },
-  'dead_letter_messages.user_id': async (db, w) => {
-    const row = returned(
-      await db
-        .insert(schema.deadLetterMessages)
-        .values({
-          originalMessageId: 'message-1',
-          topic: 'notifications',
-          payload: {},
-          error: 'gave up',
-          retryCount: 5,
-          userId: w.subject,
-        })
-        .returning()
-    )
-    return eq(schema.deadLetterMessages.id, row.id)
-  },
+  'dead_letter_messages.user_id': async (db, w) =>
+    eq(schema.deadLetterMessages.id, await deadLetter(db, w.subject)),
   'device_tokens.user_id': async (db, w) => {
     const row = returned(
       await db
@@ -496,6 +489,40 @@ const SEEDS: Record<UserDependentColumn, Seed> = {
   },
 }
 
+const deadLetter = async (db: Db, userId: string) =>
+  returned(
+    await db
+      .insert(schema.deadLetterMessages)
+      .values({
+        originalMessageId: `message-${userId}`,
+        topic: 'notifications',
+        payload: { userId },
+        error: 'gave up',
+        retryCount: 5,
+        userId,
+      })
+      .returning()
+  ).id
+
+const authorizationCode = (db: Db, w: World, userId: string, expiresAt: Date) =>
+  db.insert(schema.oauthAuthorizationCodes).values({
+    authorizationCode: `code-${userId}`,
+    clientId: w.clientId,
+    userId,
+    redirectUri: 'https://x.test',
+    codeChallenge: 'challenge',
+    scopes: ['plants:read'],
+    expiresAt,
+  })
+
+const webhookEvent = (db: Db, userId: string) =>
+  db.insert(schema.revenuecatWebhookEvents).values({
+    id: `event-${userId}`,
+    eventType: 'RENEWAL',
+    appUserId: userId,
+    environment: 'SANDBOX',
+  })
+
 const delegation = async (
   db: Db,
   parties: { readonly ownerId: string; readonly caretakerId: string },
@@ -643,7 +670,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
     const reset = () =>
       db.execute(
-        sql`TRUNCATE TABLE users, canopies, oauth_clients, gift_codes RESTART IDENTITY CASCADE`
+        sql`TRUNCATE TABLE users, canopies, oauth_clients, gift_codes, revenuecat_webhook_events RESTART IDENTITY CASCADE`
       )
 
     const user = async (name: string) =>
@@ -725,6 +752,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         onNone: () => ({ present: false, names: false, meets: false }),
         onSome: (row) => ({ present: true, ...row }),
       })
+    }
+
+    const tablesNaming = async (userId: string) => {
+      const { rows } = await db.execute<{ table: string }>(sql`
+        SELECT 'dead_letter_messages' AS "table" FROM dead_letter_messages
+        WHERE user_id = ${userId}::uuid OR payload->>'userId' = ${userId}
+        UNION ALL
+        SELECT 'oauth_authorization_codes' FROM oauth_authorization_codes
+        WHERE user_id = ${userId}
+        UNION ALL
+        SELECT 'revenuecat_webhook_events' FROM revenuecat_webhook_events
+        WHERE app_user_id = ${userId}
+        ORDER BY 1
+      `)
+      return Array.map(rows, (row) => row.table)
     }
 
     beforeAll(async () => {
@@ -836,5 +878,26 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         expect(Array.getSomes(problems)).toEqual([])
       }
     )
+
+    it('leaves no row that names the user outside a foreign key after the hourly sweep and the purge, and keeps the rows of another user', async () => {
+      await reset()
+      const w = await world()
+      await deadLetter(db, w.subject)
+      await deadLetter(db, w.owner)
+      await authorizationCode(db, w, w.subject, new Date(Date.now() - 29 * DAY))
+      await authorizationCode(db, w, w.owner, new Date(Date.now() + DAY))
+      await webhookEvent(db, w.subject)
+      await webhookEvent(db, w.owner)
+
+      await run(deleteExpiredSignInRows)
+      await run(purgeAccount(w.subject))
+
+      expect(await tablesNaming(w.subject)).toEqual([])
+      expect(await tablesNaming(w.owner)).toEqual([
+        'dead_letter_messages',
+        'oauth_authorization_codes',
+        'revenuecat_webhook_events',
+      ])
+    })
   }
 )

@@ -1,6 +1,7 @@
 import type { Absence } from '@lily/api/contexts/absence'
 import type { Canopy } from '@lily/api/contexts/canopy'
 import type { AccountPhotoRepository } from '@lily/api/repositories/account-photo.repository'
+import type { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import type { UserRepository } from '@lily/api/repositories/user.repository'
 import { AdminUser } from '@lily/api/services/admin/middleware.types'
 import type { GCSService } from '@lily/api/services/file/gcs'
@@ -19,6 +20,7 @@ export const deleteUser = (
   SqlError | GCSDeleteError | UserNotFoundError | CannotModifySelfError,
   | UserRepository
   | AccountPhotoRepository
+  | SubscriptionRepository
   | GCSService
   | AdminUser
   | Canopy

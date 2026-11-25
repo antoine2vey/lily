@@ -138,7 +138,7 @@ export const subscriptionEvents = pgTable('subscription_events', {
 
 // Every RevenueCat webhook event applied once, keyed by RevenueCat's event
 // id. A redelivery conflicts on the primary key and is acknowledged without
-// being applied again. Rows are kept for audit.
+// being applied again. The account purge deletes the rows of its user.
 export const revenuecatWebhookEvents = pgTable('revenuecat_webhook_events', {
   id: text('id').primaryKey(),
   eventType: text('event_type').notNull(),

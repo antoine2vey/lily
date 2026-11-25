@@ -62,6 +62,7 @@ import {
   RoomRepository,
   RoomRepositoryLive,
 } from '@lily/api/repositories/room.repository'
+import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import {
   UserRepository,
   UserRepositoryLive,
@@ -128,6 +129,7 @@ const BaseLive = Layer.mergeAll(
   PlantRepositoryLive,
   RefreshTokenRepositoryLive,
   RoomRepositoryLive,
+  SubscriptionRepositoryLive,
   UserRepositoryLive
 ).pipe(Layer.provideMerge(DrizzleLive), Layer.provideMerge(PgLive))
 

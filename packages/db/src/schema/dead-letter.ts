@@ -23,7 +23,7 @@ export const deadLetterMessages = pgTable('dead_letter_messages', {
   failedAt: timestamp('failed_at', { withTimezone: true })
     .notNull()
     .defaultNow(),
-  userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
   plantId: uuid('plant_id').references(() => plants.id, {
     onDelete: 'set null',
   }),

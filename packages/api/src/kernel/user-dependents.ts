@@ -119,7 +119,7 @@ export const USER_DEPENDENTS = {
   },
   'dead_letter_messages.user_id': {
     release: Keep({ reason: 'an operator reviews it' }),
-    purge: Reassign(),
+    purge: Cascade(),
     departure: personal,
   },
   'device_tokens.user_id': {
@@ -250,9 +250,9 @@ export type UserDependentColumn = keyof typeof USER_DEPENDENTS
 /** Columns named like a user id that have no foreign key to `users.id`, each with why. */
 export const UNLINKED_USER_COLUMNS = {
   'oauth_authorization_codes.user_id':
-    'a code lives 10 minutes and is deleted when spent, and the tokens it buys have the foreign key',
+    'a code lives 10 minutes and is deleted when spent, the hourly auth cleanup deletes an unspent one within an hour of its expiry, and the tokens it buys have the foreign key',
   'oauth_identities.provider_user_id':
     "the provider's id for the user, not a Lily id",
   'revenuecat_webhook_events.app_user_id':
-    "RevenueCat's app user id, kept as an audit of the webhook",
+    "RevenueCat's app user id, which is the Lily user id. It marks an event as applied, and the purge deletes the user's rows",
 } as const satisfies Record<`${string}.${string}`, string>

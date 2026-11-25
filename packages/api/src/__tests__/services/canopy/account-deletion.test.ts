@@ -10,6 +10,7 @@ import {
 } from '@lily/api/__tests__/mocks/canopy.repository'
 import { createMockDeviceTokenRepository } from '@lily/api/__tests__/mocks/device-token.repository'
 import { createMockRefreshTokenRepository } from '@lily/api/__tests__/mocks/refresh-token.repository'
+import { createMockSubscriptionRepository } from '@lily/api/__tests__/mocks/subscription.repository'
 import {
   asUserRow,
   createMockUserRepository,
@@ -153,6 +154,7 @@ describe('account deletion', () => {
           Layer.mergeAll(
             world.layer,
             NoStoredPhotosLive,
+            createMockSubscriptionRepository(),
             createMockUserRepository(users),
             Layer.succeed(AdminUser, {
               id: mockAdminUser.id,
@@ -227,6 +229,7 @@ describe('account deletion', () => {
               canopyFailingFor('alex')
             ).layer,
             NoStoredPhotosLive,
+            createMockSubscriptionRepository(),
             recordingUsers(users, writes, expired)
           )
         )
