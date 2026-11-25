@@ -1,24 +1,16 @@
-import { mockFollowUsers } from '@lily/api/__tests__/fixtures/follows'
-import { createTestUser } from '@lily/api/__tests__/fixtures/users'
+import {
+  mockFollowUsers,
+  mockPrivateUser as privateUser,
+  mockFollowUser1 as publicUser,
+} from '@lily/api/__tests__/fixtures/follows'
 import { createMockFollowRepository } from '@lily/api/__tests__/mocks/follow.repository'
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
-import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { getUserFollowers } from '@lily/api/services/social/endpoints/get-user-followers'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
 
 const currentUserId = 'user-1'
-const publicUser = createTestUser({
-  id: 'follow-user-1',
-  name: 'Alice',
-  publicProfile: true,
-})
-const privateUser = createTestUser({
-  id: 'private-user-1',
-  name: 'Private Pete',
-  publicProfile: false,
-})
 
 const buildLayer = (
   follows: Array<{
@@ -32,8 +24,7 @@ const buildLayer = (
     createMockFollowRepository({
       follows,
       users: mockFollowUsers,
-    }),
-    createMockUserRepository([publicUser, privateUser])
+    })
   )
 
 describe('getUserFollowers', () => {

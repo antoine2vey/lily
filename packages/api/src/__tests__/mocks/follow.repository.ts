@@ -215,6 +215,15 @@ export const createMockFollowRepository = (
         )
       ),
 
+    findVisibleUser: (userId) =>
+      Effect.succeed(
+        pipe(
+          Array.findFirst(mockUsers, (u) => u.id === userId),
+          Option.map(({ publicProfile }) => ({ publicProfile })),
+          Option.getOrNull
+        )
+      ),
+
     getLastNudge: (fromUserId, toUserId) =>
       Effect.succeed(
         pipe(

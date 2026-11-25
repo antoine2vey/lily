@@ -139,6 +139,20 @@ export class UserRepository extends Context.Service<
   IUserRepository
 >()('UserRepository') {}
 
+/**
+ * `deleted_at` dates a deletion request, and the purge reads it. A move to
+ * `pending_deletion` keeps the date of a request already made and dates a new
+ * one. A move to `active` ends the request. `suspended` and `banned` keep the
+ * date, so a request an admin interrupts is still purged on time once the
+ * account is back to `pending_deletion`.
+ */
+const deletedAtAfter = (status: UserStatus | undefined) =>
+  status === 'active'
+    ? null
+    : status === 'pending_deletion'
+      ? sql`coalesce(${users.deletedAt}, now())`
+      : undefined
+
 export const UserRepositoryLive = Layer.effect(
   UserRepository,
   Effect.gen(function* () {
@@ -203,7 +217,11 @@ export const UserRepositoryLive = Layer.effect(
         const [user] = yield* writeAccount(
           db,
           id,
-          { ...data, updatedAt: nowAsDate() },
+          {
+            ...data,
+            deletedAt: deletedAtAfter(data.status),
+            updatedAt: nowAsDate(),
+          },
           (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
@@ -302,7 +320,7 @@ export const UserRepositoryLive = Layer.effect(
         const [user] = yield* writeAccount(
           db,
           id,
-          { status, updatedAt: nowAsDate() },
+          { status, deletedAt: deletedAtAfter(status), updatedAt: nowAsDate() },
           (written) => written.returning()
         )
         return Option.getOrNull(Option.fromNullishOr(user))
