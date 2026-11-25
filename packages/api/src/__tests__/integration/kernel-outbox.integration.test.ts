@@ -18,7 +18,16 @@ import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, Duration, Effect, Layer, Queue, Result, Schema } from 'effect'
+import {
+  Array,
+  Duration,
+  Effect,
+  Layer,
+  Order,
+  Queue,
+  Result,
+  Schema,
+} from 'effect'
 import * as SqlClient from 'effect/sql/SqlClient'
 import pg from 'pg'
 import {
@@ -305,6 +314,122 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)('Outbox - Integration', () => {
       expect(
         await withOutbox([reminders.consumer], (outbox) => outbox.drain)
       ).toBe(0)
+    })
+  })
+
+  describe('dead letters', () => {
+    const pass = (consumers: ReadonlyArray<Consumer>, at: number) => {
+      vi.setSystemTime(seconds(at))
+      return withOutbox(consumers, (outbox) => outbox.drain).then(
+        () => 'ok',
+        () => 'failed'
+      )
+    }
+
+    const deadLetterTopics = async () =>
+      Array.sort(
+        Array.map(
+          await db.select().from(schema.deadLetterMessages),
+          (row) => row.topic
+        ),
+        Order.String
+      )
+
+    /** A consumer that fails on one plant and records every other one. */
+    const failingOn = (name: string, poisoned: string) => {
+      const seen: Array<string> = []
+      return {
+        seen,
+        consumer: consumer(name, care, (event) =>
+          event.plantId === poisoned
+            ? Effect.fail(
+                new ConsumerFailed({ consumer: name, reason: 'down' })
+              )
+            : Effect.sync(() => {
+                seen.push(event.plantId)
+              })
+        ),
+      }
+    }
+
+    it('dead-letters an event once for each consumer that exhausted it', async () => {
+      const reminders = recorder('reminders')
+      const forwarder = recorder('forwarder')
+      reminders.state.failing = true
+      forwarder.state.failing = true
+      const consumers = [reminders.consumer, forwarder.consumer]
+      await withOutbox(consumers, (outbox) =>
+        outbox.append(care, [{ plantId: 'fern' }])
+      )
+
+      const passes = [
+        await pass(consumers, 0),
+        await pass(consumers, 2),
+        await pass(consumers, 6),
+      ]
+
+      expect(passes).toEqual(['ok', 'ok', 'ok'])
+      expect(await rows()).toMatchObject([{ processedAt: seconds(6) }])
+      expect(await deadLetterTopics()).toEqual([
+        'outbox:test-care:forwarder',
+        'outbox:test-care:reminders',
+      ])
+    })
+
+    it('dead-letters a redriven event again when its consumer fails again', async () => {
+      const reminders = recorder('reminders')
+      reminders.state.failing = true
+      await withOutbox([reminders.consumer], (outbox) =>
+        outbox.append(care, [{ plantId: 'fern' }])
+      )
+      await pass([reminders.consumer], 0)
+      await pass([reminders.consumer], 2)
+      await pass([reminders.consumer], 6)
+      vi.setSystemTime(seconds(3600))
+      await withOutbox([reminders.consumer], (outbox) =>
+        outbox.redrive('reminders', Duration.hours(24))
+      )
+
+      const passes = [
+        await pass([reminders.consumer], 3600),
+        await pass([reminders.consumer], 3602),
+        await pass([reminders.consumer], 3606),
+      ]
+
+      expect(passes).toEqual(['ok', 'ok', 'ok'])
+      expect(await rows()).toMatchObject([{ processedAt: seconds(3606) }])
+      expect(await deadLetterTopics()).toEqual([
+        'outbox:test-care:reminders',
+        'outbox:test-care:reminders',
+      ])
+    })
+
+    it('delivers the healthy events of a batch once when one event in it is dead-lettered', async () => {
+      const reminders = failingOn('reminders', 'poison')
+      const forwarder = failingOn('forwarder', 'poison')
+      const consumers = [reminders.consumer, forwarder.consumer]
+      const healthy = Array.map(Array.range(1, 10), (n) => `plant-${n}`)
+      await withOutbox(consumers, (outbox) =>
+        outbox.append(care, [{ plantId: 'poison' }])
+      )
+      await pass(consumers, 0)
+      await pass(consumers, 2)
+      await withOutbox(consumers, (outbox) =>
+        outbox.append(
+          care,
+          Array.map(healthy, (plantId) => ({ plantId }))
+        )
+      )
+
+      for (const at of [6, 3600, 7200, 10800]) {
+        await pass(consumers, at)
+      }
+
+      expect(reminders.seen.sort()).toEqual([...healthy].sort())
+      expect(forwarder.seen.sort()).toEqual([...healthy].sort())
+      expect(
+        Array.filter(await rows(), (row) => row.processedAt === null)
+      ).toEqual([])
     })
   })
 
