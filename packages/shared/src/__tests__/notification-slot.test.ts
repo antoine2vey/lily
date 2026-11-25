@@ -212,6 +212,64 @@ describe('send slots and do-not-disturb', () => {
     })
   })
 
+  describe('with a stored bound that is not HH:mm', () => {
+    const MALFORMED: ReadonlyArray<readonly [...Dnd, ...Dnd]> = [
+      ['', '07:00', '22:00', '07:00'],
+      ['22:00', '', '22:00', '07:00'],
+      ['garbage', '06:30', '22:00', '06:30'],
+      ['21:00', 'garbage', '21:00', '07:00'],
+      ['', '', '22:00', '07:00'],
+      ['garbage', 'garbage', '22:00', '07:00'],
+    ]
+
+    const outcomeOf = <A>(
+      exit: Exit.Exit<A, { readonly _tag: string }>,
+      show: (picked: A) => string
+    ): string =>
+      Exit.isSuccess(exit) ? show(exit.value) : failureOf(exit)._tag
+
+    const picksToday = (recipient: SlotRecipient): ReadonlyArray<string> =>
+      Array.map(ROLLS, (roll) =>
+        outcomeOf(
+          Effect.runSyncExit(pickNotificationTime(recipient, roll)),
+          (slot) => slot.toISOString()
+        )
+      )
+
+    const picksUpcoming = (recipient: SlotRecipient): ReadonlyArray<string> =>
+      Array.map(ROLLS, (roll) =>
+        outcomeOf(
+          Effect.runSyncExit(pickUpcomingNotificationTime(recipient, roll)),
+          Option.match({
+            onNone: () => 'none',
+            onSome: (slot) => slot.toISOString(),
+          })
+        )
+      )
+
+    it.each(MALFORMED)(
+      'pickNotificationTime reads %j-%j as %s-%s',
+      (start, end, readStart, readEnd) => {
+        vi.setSystemTime(new Date('2026-11-16T03:00:00.000Z'))
+
+        expect(picksToday(recipientWith(UTC, [start, end]))).toEqual(
+          picksToday(recipientWith(UTC, [readStart, readEnd]))
+        )
+      }
+    )
+
+    it.each(MALFORMED)(
+      'pickUpcomingNotificationTime reads %j-%j as %s-%s',
+      (start, end, readStart, readEnd) => {
+        vi.setSystemTime(new Date('2026-11-16T03:00:00.000Z'))
+
+        expect(picksUpcoming(recipientWith(UTC, [start, end]))).toEqual(
+          picksUpcoming(recipientWith(UTC, [readStart, readEnd]))
+        )
+      }
+    )
+  })
+
   describe('on the day of a clock change', () => {
     it.each([
       [PARIS, 'springs forward', '2026-03-29T04:10:00.000Z', '05:00'],
