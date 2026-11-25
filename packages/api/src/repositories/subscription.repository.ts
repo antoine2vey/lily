@@ -125,7 +125,8 @@ export interface ISubscriptionRepository {
 
   /**
    * Records a RevenueCat event id under a hold of its account, so a purge
-   * either finds the row or commits first and leaves nothing to record.
+   * either finds the row or commits first and leaves nothing to record. The
+   * row names the account by its stored id, whatever case RevenueCat sent.
    */
   readonly claimWebhookEvent: (
     event: RevenueCatWebhookEventRecord
@@ -234,13 +235,14 @@ export const SubscriptionRepositoryLive = Layer.effect(
     const db = yield* PgDrizzle.PgDrizzle
     const client = yield* SqlClient.SqlClient
 
-    const holdAccount = Effect.fn('SubscriptionRepository.holdAccount')(
+    // The id as the users row answers it, in lowercase.
+    const heldAccountId = Effect.fn('SubscriptionRepository.heldAccountId')(
       function* (userId: string) {
-        if (!isAccountId(userId)) return false
+        if (!isAccountId(userId)) return Option.none<string>()
         const held = yield* pinAccounts(
           db.select({ id: users.id }).from(users).where(eq(users.id, userId))
         )
-        return Array.isReadonlyArrayNonEmpty(held)
+        return Option.map(Array.head(held), (row) => row.id)
       }
     )
 
@@ -315,14 +317,16 @@ export const SubscriptionRepositoryLive = Layer.effect(
           .where(isNotNull(userSubscriptions.externalSubscriptionId))
       ).pipe(Effect.withSpan('SubscriptionRepository.findStoreSubscriptions')),
 
-      holdAccount,
+      holdAccount: (userId: string) =>
+        Effect.map(heldAccountId(userId), Option.isSome),
 
       claimWebhookEvent: Effect.fn('SubscriptionRepository.claimWebhookEvent')(
         function* (event: RevenueCatWebhookEventRecord) {
-          if (!(yield* holdAccount(event.appUserId))) return 'no_account'
+          const held = yield* heldAccountId(event.appUserId)
+          if (Option.isNone(held)) return 'no_account'
           const inserted = yield* db
             .insert(revenuecatWebhookEvents)
-            .values(event)
+            .values({ ...event, appUserId: held.value })
             .onConflictDoNothing()
             .returning({ id: revenuecatWebhookEvents.id })
           return Array.isReadonlyArrayNonEmpty(inserted)
