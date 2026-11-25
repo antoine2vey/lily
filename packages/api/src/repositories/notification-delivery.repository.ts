@@ -329,17 +329,24 @@ export const NotificationDeliveryLive = Layer.effect(
       failAbandonedDeliveries: Effect.fn(
         'NotificationDelivery.failAbandonedDeliveries'
       )(function* (queuedBefore: Date, error: string) {
+        const locked = yield* lockedInIdOrder(
+          db,
+          and(
+            eq(notifications.status, 'queued'),
+            or(
+              isNull(notifications.queuedAt),
+              and(
+                isNotNull(notifications.deliveryMessageId),
+                lt(notifications.queuedAt, queuedBefore)
+              )
+            )
+          )
+        )
         const rows = yield* transitionEach(db, 'Notification', {
           from: ['queued'],
           to: 'failed',
           also: { lastError: error },
-          where: or(
-            isNull(notifications.queuedAt),
-            and(
-              isNotNull(notifications.deliveryMessageId),
-              lt(notifications.queuedAt, queuedBefore)
-            )
-          ),
+          where: inArray(notifications.id, locked),
         })
         return Array.length(rows)
       }),
