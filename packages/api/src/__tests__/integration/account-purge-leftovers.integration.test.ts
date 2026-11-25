@@ -43,7 +43,7 @@ import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoi
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Exit, Layer, ManagedRuntime, References } from 'effect'
 import pg from 'pg'
@@ -145,7 +145,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await db
           .select({ id: schema.revenuecatWebhookEvents.id })
           .from(schema.revenuecatWebhookEvents)
-          .where(eq(schema.revenuecatWebhookEvents.appUserId, appUserId)),
+          .where(
+            sql`lower(${schema.revenuecatWebhookEvents.appUserId}) = lower(${appUserId})`
+          ),
         (row) => row.id
       )
 
@@ -324,6 +326,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await webhookEventsOf(purged),
         await deadLettersNaming(purged),
       ]).toEqual([[], []])
+    })
+
+    it('leaves no event of the user that RevenueCat sent with the id in upper case', async () => {
+      const purged = await user('sam')
+      const eventId = `expiration-${purged}`
+      expect((await deliver(purged.toUpperCase(), eventId))._tag).toBe(
+        'Success'
+      )
+      expect(await webhookEventsOf(purged)).toEqual([eventId])
+
+      expect(Exit.isSuccess(await purge(purged))).toBe(true)
+
+      expect(await webhookEventsOf(purged)).toEqual([])
     })
   }
 )
