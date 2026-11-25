@@ -37,6 +37,12 @@ export interface FailedAttempt {
   readonly retryCount: number
 }
 
+/** One dequeue of a queue message: the message, and the claim of this dequeue. */
+export interface DeliveryAttempt {
+  readonly messageId: string
+  readonly claim: string
+}
+
 export interface SentNotification {
   readonly id: string
   readonly title: string
@@ -64,10 +70,39 @@ export class NotificationDelivery extends Context.Service<
       rows: ReadonlyArray<DeferredNotification>,
       heldBy: Option.Option<string>
     ) => Effect.Effect<void, SqlError>
+    /**
+     * Gives the queued rows no message holds, or this message holds, to this
+     * dequeue of it. A redelivery takes the rows from the dequeue before it,
+     * unless that one started its push. The dequeue that started a push
+     * still holds its rows, so the discard of a message that died in its
+     * push can fail them.
+     */
     readonly claimForDelivery: (
       ids: ReadonlyArray<string>,
-      messageId: string
+      attempt: DeliveryAttempt
     ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+    /**
+     * Records that the push of the rows this dequeue still holds begins, and
+     * returns them. Only those may be pushed. No dequeue can claim a row
+     * after this, so a push that is never confirmed is not sent again.
+     */
+    readonly startPush: (
+      ids: ReadonlyArray<string>,
+      claim: string
+    ) => Effect.Effect<ReadonlyArray<string>, SqlError>
+    /**
+     * Fails the rows whose push an earlier dequeue of this message started
+     * before `startedBefore` and never confirmed. A redelivery passes the
+     * time of its own dequeue: the queue hands a message out again only once
+     * the dequeue before it went quiet. A push that started later belongs
+     * to a dequeue that may still be sending.
+     */
+    readonly failUnconfirmed: (
+      ids: ReadonlyArray<string>,
+      messageId: string,
+      startedBefore: Date,
+      error: string
+    ) => Effect.Effect<ReadonlyArray<FailedAttempt>, SqlError>
     readonly releaseUnclaimedOlderThan: (
       queuedBefore: Date
     ) => Effect.Effect<number, SqlError>
@@ -171,7 +206,12 @@ export const NotificationDeliveryLive = Layer.effect(
         yield* transitionEach(db, 'Notification', {
           from: ['queued'],
           to: 'pending',
-          also: { queuedAt: null, deliveryMessageId: null, scheduledAt },
+          also: {
+            queuedAt: null,
+            deliveryMessageId: null,
+            deliveryClaim: null,
+            scheduledAt,
+          },
           where: and(
             inArray(
               notifications.id,
@@ -179,15 +219,14 @@ export const NotificationDeliveryLive = Layer.effect(
             ),
             Option.match(heldBy, {
               onNone: () => isNull(notifications.deliveryMessageId),
-              onSome: (messageId) =>
-                eq(notifications.deliveryMessageId, messageId),
+              onSome: (claim) => eq(notifications.deliveryClaim, claim),
             })
           ),
         })
       }),
 
       claimForDelivery: Effect.fn('NotificationDelivery.claimForDelivery')(
-        function* (ids: ReadonlyArray<string>, messageId: string) {
+        function* (ids: ReadonlyArray<string>, attempt: DeliveryAttempt) {
           if (ids.length === 0) return []
           const locked = yield* lockedInIdOrder(
             db,
@@ -195,17 +234,80 @@ export const NotificationDeliveryLive = Layer.effect(
               inArray(notifications.id, [...ids]),
               eq(notifications.status, 'queued'),
               or(
+                isNull(notifications.pushStartedAt),
+                eq(notifications.deliveryClaim, attempt.claim)
+              ),
+              or(
                 isNull(notifications.deliveryMessageId),
-                eq(notifications.deliveryMessageId, messageId)
+                eq(notifications.deliveryMessageId, attempt.messageId)
               )
             )
           )
           const rows = yield* db
             .update(notifications)
-            .set({ deliveryMessageId: messageId })
+            .set({
+              deliveryMessageId: attempt.messageId,
+              deliveryClaim: attempt.claim,
+            })
             .where(inArray(notifications.id, locked))
             .returning({ id: notifications.id })
           return Array.map(rows, (row) => row.id)
+        }
+      ),
+
+      startPush: Effect.fn('NotificationDelivery.startPush')(function* (
+        ids: ReadonlyArray<string>,
+        claim: string
+      ) {
+        if (ids.length === 0) return []
+        const locked = yield* lockedInIdOrder(
+          db,
+          and(
+            inArray(notifications.id, [...ids]),
+            eq(notifications.status, 'queued'),
+            eq(notifications.deliveryClaim, claim),
+            isNull(notifications.pushStartedAt)
+          )
+        )
+        const rows = yield* db
+          .update(notifications)
+          .set({ pushStartedAt: nowAsDate() })
+          .where(inArray(notifications.id, locked))
+          .returning({ id: notifications.id })
+        return Array.map(rows, (row) => row.id)
+      }),
+
+      failUnconfirmed: Effect.fn('NotificationDelivery.failUnconfirmed')(
+        function* (
+          ids: ReadonlyArray<string>,
+          messageId: string,
+          startedBefore: Date,
+          error: string
+        ) {
+          if (ids.length === 0) return []
+          const locked = yield* lockedInIdOrder(
+            db,
+            and(
+              inArray(notifications.id, [...ids]),
+              eq(notifications.status, 'queued'),
+              eq(notifications.deliveryMessageId, messageId),
+              lt(notifications.pushStartedAt, startedBefore)
+            )
+          )
+          const rows = yield* transitionEach(db, 'Notification', {
+            from: ['queued'],
+            to: 'failed',
+            also: { lastError: error },
+            where: inArray(notifications.id, locked),
+          })
+          return Array.map(
+            rows,
+            (row): FailedAttempt => ({
+              id: row.id,
+              status: 'failed',
+              retryCount: row.retryCount,
+            })
+          )
         }
       ),
 
@@ -257,7 +359,7 @@ export const NotificationDeliveryLive = Layer.effect(
           and(
             inArray(notifications.id, [...ids]),
             eq(notifications.status, 'queued'),
-            eq(notifications.deliveryMessageId, heldBy)
+            eq(notifications.deliveryClaim, heldBy)
           )
         )
         const rows = yield* transitionEachEither(db, 'Notification', {
@@ -280,6 +382,14 @@ export const NotificationDeliveryLive = Layer.effect(
             deliveryMessageId: whenRetried(
               sql`NULL`,
               sql`${notifications.deliveryMessageId}`
+            ),
+            deliveryClaim: whenRetried(
+              sql`NULL`,
+              sql`${notifications.deliveryClaim}`
+            ),
+            pushStartedAt: whenRetried(
+              sql`NULL`,
+              sql`${notifications.pushStartedAt}`
             ),
           },
           where: inArray(notifications.id, locked),

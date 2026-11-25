@@ -493,8 +493,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       const id = await dueRow()
       await poll()
 
-      const stalled = stopsAtTheSend()
-      const first = consume(stalled.sends)
+      const stalled = stopsAtTheTokenRead()
+      const first = consume(sendsAtOnce, createMockAlerter(), stalled.tokens)
       await stalled.reached
       await claimsGoStale()
       await sweep()
@@ -558,7 +558,7 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
     }, 20_000)
 
-    it('thirdFailureDeadLetterFails: a last failure whose dead letter cannot be written stays queued, and its redelivery fails the row once', async () => {
+    it('thirdFailureDeadLetterFails: a last failure whose dead letter cannot be written stays queued, and its redelivery fails the row once without a second push', async () => {
       const id = await dueRow()
       await db.execute(
         sql`UPDATE notifications SET retry_count = ${LAST_RETRY} WHERE id = ${id}`
@@ -586,14 +586,11 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
 
       expect(
         [exhaustedAlerts(alerter), await deadLetters(), await row(id)],
-        'the row and its reports after the redelivery failed too'
+        'the row and its reports after the redelivery found its push unconfirmed'
       ).toEqual([
         1,
         1,
-        expect.objectContaining({
-          status: 'failed',
-          retryCount: LAST_RETRY + 1,
-        }),
+        expect.objectContaining({ status: 'failed', retryCount: LAST_RETRY }),
       ])
       expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
     }, 20_000)
@@ -631,11 +628,11 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
     }, 20_000)
 
     it.each([
-      ['before it starts the push', stopsAtTheTokenRead],
-      ['at the send', stopsAtTheSend],
-    ])(
+      ['before it starts the push', stopsAtTheTokenRead, 'sent', 0],
+      ['at the send', stopsAtTheSend, 'failed', 1],
+    ] as const)(
       'quietConsumer: a consumer that goes quiet %s and resumes after its redelivery pushes nothing more',
-      async (_, stops) => {
+      async (_, stops, status, reported) => {
         const id = await dueRow()
         await poll()
 
@@ -647,7 +644,8 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
         await quietConsumer.reached
         await claimsGoStale()
         await sweep()
-        await consume()
+        const alerter = createMockAlerter()
+        await consume(sendsAtOnce, alerter)
 
         quietConsumer.resume()
         await first
@@ -656,8 +654,11 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
           pushes,
           'pushes of one notification whose first consumer went quiet past the visibility timeout'
         ).toHaveLength(1)
+        expect(
+          [await rowStatus(id), await deadLetters(), exhaustedAlerts(alerter)],
+          'the row, dead letters and alerts once both consumers are done'
+        ).toEqual([status, reported, reported])
         expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
-        if ('tokens' in quietConsumer) expect(await rowStatus(id)).toBe('sent')
       },
       20_000
     )
@@ -700,19 +701,18 @@ describe.skipIf(!DATABASE_URL_TEST || !REDIS_URL_TEST)(
       expect(await rowStatus(id)).toBe('queued')
       await claimsGoStale()
       await sweep()
-      await consume()
+      const alerter = createMockAlerter()
+      await consume(sendsAtOnce, alerter)
 
       expect(
         pushes,
         'pushes of one notification whose consumer stopped after the push'
       ).toHaveLength(1)
+      expect(
+        [await rowStatus(id), await deadLetters(), exhaustedAlerts(alerter)],
+        'the row, dead letters and alerts of a push that was never confirmed'
+      ).toEqual(['failed', 1, 1])
       expect(await redis.exists(...QUEUE_KEYS)).toBe(0)
-
-      await db.execute(
-        sql`UPDATE notifications SET queued_at = now() - interval '2 hours' WHERE id = ${id}`
-      )
-      await sweep()
-      expect(await rowStatus(id)).toBe('failed')
     }, 20_000)
 
     it('ackFailsAfterDiscard: a discarded entry whose ack failed is dead-lettered once and alerted once', async () => {

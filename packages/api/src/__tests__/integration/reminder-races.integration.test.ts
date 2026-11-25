@@ -467,18 +467,22 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       await db.execute(sql`DELETE FROM notifications WHERE id = ${replaced.id}`)
       const sent: PushMessage[] = []
       await runtime.runPromise(
-        processMessage({
-          id: `digest-${kept.id}`,
-          topic: 'watering_reminder',
-          payload: {
-            userId: alex,
-            notificationIds: [kept.id, replaced.id],
-            plantIds: [mine, other],
+        processMessage(
+          {
+            id: `digest-${kept.id}`,
+            topic: 'watering_reminder',
+            payload: {
+              userId: alex,
+              notificationIds: [kept.id, replaced.id],
+              plantIds: [mine, other],
+            },
+            retryCount: 0,
+            createdAt: new Date(),
+            scheduledAt: new Date(),
           },
-          retryCount: 0,
-          createdAt: new Date(),
-          scheduledAt: new Date(),
-        }).pipe(
+          'claim-1'
+        ).pipe(
+          Effect.asVoid,
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,

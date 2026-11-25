@@ -3,13 +3,20 @@ import type {
   NotificationTable,
 } from '@lily/api/__tests__/mocks/notification-table'
 import { NotificationDelivery } from '@lily/api/repositories/notification-delivery.repository'
-import { Array, Effect, Equal, Layer, Option, pipe, Result } from 'effect'
+import { Array, Effect, Layer, Option, pipe, Result } from 'effect'
 
 export const createMockNotificationDelivery = (
   table: NotificationTable,
   options: MockNotificationsOptions = {}
 ): Layer.Layer<NotificationDelivery> => {
   const { rows: notificationsState, queuedAt, deliveryClaims } = table
+  const dequeueClaims = new Map<string, string>()
+  const pushStarted = new Map<string, Date>()
+  const release = (id: string) => {
+    deliveryClaims.delete(id)
+    dequeueClaims.delete(id)
+    pushStarted.delete(id)
+  }
 
   return Layer.succeed(
     NotificationDelivery,
@@ -57,22 +64,21 @@ export const createMockNotificationDelivery = (
               notificationsState,
               (row) => row.id === id
             )
-            const holder = Option.fromNullishOr(deliveryClaims.get(id))
-            if (
-              Option.isNone(n) ||
-              n.value.status !== 'queued' ||
-              !Equal.equals(holder, heldBy)
-            ) {
+            const holds = Option.match(heldBy, {
+              onNone: () => !deliveryClaims.has(id),
+              onSome: (claim) => dequeueClaims.get(id) === claim,
+            })
+            if (Option.isNone(n) || n.value.status !== 'queued' || !holds) {
               return
             }
             n.value.status = 'pending'
             n.value.scheduledAt = until
             queuedAt.delete(id)
-            deliveryClaims.delete(id)
+            release(id)
           })
         }),
 
-      claimForDelivery: (ids, messageId) =>
+      claimForDelivery: (ids, { messageId, claim }) =>
         Effect.sync(() => {
           const claimed: string[] = []
           Array.forEach(notificationsState, (n) => {
@@ -80,16 +86,58 @@ export const createMockNotificationDelivery = (
             const claimable =
               Array.contains(ids, n.id) &&
               n.status === 'queued' &&
+              (!pushStarted.has(n.id) || dequeueClaims.get(n.id) === claim) &&
               Option.getOrElse(
                 Option.map(owner, (id) => id === messageId),
                 () => true
               )
             if (!claimable) return
             deliveryClaims.set(n.id, messageId)
+            dequeueClaims.set(n.id, claim)
             claimed.push(n.id)
           })
           return claimed
         }),
+
+      startPush: (ids, claim) =>
+        Effect.sync(() => {
+          const started = Array.filter(
+            ids,
+            (id) =>
+              Array.some(
+                notificationsState,
+                (n) => n.id === id && n.status === 'queued'
+              ) &&
+              dequeueClaims.get(id) === claim &&
+              !pushStarted.has(id)
+          )
+          Array.forEach(started, (id) => pushStarted.set(id, new Date()))
+          return started
+        }),
+
+      failUnconfirmed: (ids, messageId, startedBefore, error) =>
+        Effect.sync(() =>
+          Array.filterMap(notificationsState, (n) => {
+            if (
+              !Array.contains(ids, n.id) ||
+              n.status !== 'queued' ||
+              deliveryClaims.get(n.id) !== messageId ||
+              !Option.exists(
+                Option.fromNullishOr(pushStarted.get(n.id)),
+                (at) => at < startedBefore
+              )
+            ) {
+              return Result.failVoid
+            }
+            n.status = 'failed'
+            n.lastError = error
+            return Result.succeed({
+              id: n.id,
+              status: n.status,
+              retryCount: n.retryCount,
+            })
+          })
+        ),
 
       releaseUnclaimedOlderThan: (queuedBefore) =>
         Effect.sync(() => {
@@ -134,7 +182,7 @@ export const createMockNotificationDelivery = (
             if (
               !Array.contains(ids, n.id) ||
               n.status !== 'queued' ||
-              deliveryClaims.get(n.id) !== heldBy
+              dequeueClaims.get(n.id) !== heldBy
             ) {
               return Result.failVoid
             }
@@ -147,7 +195,7 @@ export const createMockNotificationDelivery = (
               n.status = 'pending'
               n.scheduledAt = due.value
               queuedAt.delete(n.id)
-              deliveryClaims.delete(n.id)
+              release(n.id)
             }
             return Result.succeed({
               id: n.id,

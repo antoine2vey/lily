@@ -192,7 +192,7 @@ const runAndCapturePushes = async (
 ): Promise<PushMessage[]> => {
   const sentMessages: PushMessage[] = []
   await Effect.runPromise(
-    processMessage(message).pipe(
+    processMessage(message, 'claim-1').pipe(
       Effect.provide(
         Layer.mergeAll(
           MockAlerterLive,
@@ -225,7 +225,7 @@ describe('Notification Worker', () => {
 
       // user-1 has 2 active tokens in mockDeviceTokens
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -398,7 +398,7 @@ describe('Notification Worker', () => {
       })
 
       const result = await Effect.runPromiseExit(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -438,7 +438,7 @@ describe('Notification Worker', () => {
       })
 
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -482,7 +482,7 @@ describe('Notification Worker', () => {
       })
 
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -524,7 +524,7 @@ describe('Notification Worker', () => {
       })
 
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -627,7 +627,7 @@ describe('Notification Worker', () => {
       ]
 
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -683,7 +683,7 @@ describe('Notification Worker', () => {
     ) => {
       const pushes: PushMessage[] = []
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -1931,6 +1931,7 @@ describe('Notification Worker', () => {
     it('leaves an undecodable entry unacked when no dead letter can be written', async () => {
       const failingDeadLetters = Layer.succeed(DeadLetterRepository, {
         create: () => Effect.fail(dbDown()),
+        takeAlert: () => Effect.succeed(null),
       })
       const { queue, acked } = createInMemoryRedisQueue(['not json'])
       const alerter = createMockAlerter()
@@ -2439,7 +2440,8 @@ describe('Notification Worker', () => {
               notificationIds: Array.map(notifications, (n) => n.id),
               plantIds,
             },
-          })
+          }),
+          'claim-1'
         ).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -2782,7 +2784,8 @@ describe('Notification Worker', () => {
               notificationIds: ['notification-1', 'notification-2'],
               plantIds: ['plant-1', 'plant-2'],
             },
-          })
+          }),
+          'claim-1'
         ).pipe(
           Effect.provide(
             Layer.mergeAll(
@@ -2839,7 +2842,7 @@ describe('Notification Worker', () => {
     ) => {
       const sentMessages: PushMessage[] = []
       await Effect.runPromise(
-        processMessage(message).pipe(
+        processMessage(message, 'claim-1').pipe(
           Effect.provide(
             Layer.mergeAll(
               MockAlerterLive,
@@ -3053,7 +3056,7 @@ describe('Notification Worker', () => {
       )
       const run = (id: string) =>
         Effect.runPromise(
-          processMessage(createTestQueueMessage({ id })).pipe(
+          processMessage(createTestQueueMessage({ id }), `claim-${id}`).pipe(
             Effect.provide(layer),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )
@@ -3193,7 +3196,8 @@ describe('Notification Worker', () => {
                 notificationIds: [notificationId],
                 plantIds: ['plant-1'],
               },
-            })
+            }),
+            'claim-1'
           ).pipe(
             Effect.provide(layer),
             Effect.provideService(References.MinimumLogLevel, 'None')
@@ -3492,6 +3496,7 @@ describe('Notification Worker', () => {
       const failsOnce = Layer.effect(
         DeadLetterRepository,
         Effect.map(DeadLetterRepository, (repo) => ({
+          ...repo,
           create: (data: CreateDeadLetterData) =>
             Effect.suspend(() =>
               Option.match(Option.fromNullishOr(writeFailures.shift()), {

@@ -9,7 +9,7 @@
 - The handler in `src/services/<domain>/handlers.ts` checks access, for a plant with `withPlantAuth`, and calls one endpoint function from `src/services/<domain>/endpoints/`.
 - A change to a care, a schedule, a plan, a plant's life, a reminder, a canopy, a delegation or a vacation is a command of a context in `src/contexts/`. The context writes the change and its facts to the `outbox` table in one transaction. After the commit, the consumers listed in `src/layers/outbox.ts` replan reminders and forward the app's events.
 - Every other read and write goes through a repository in `src/repositories/`. [CONTEXT-MAP.md](CONTEXT-MAP.md) names the exceptions, such as the reads of `CareReads` and the writes of the rate limiter.
-- The EventBus (Redis pub/sub) carries fire-and-forget events, such as the ones that unlock achievements. The MessageQueue (Redis lists) carries notification delivery, which must happen at least once.
+- The EventBus (Redis pub/sub) carries fire-and-forget events, such as the ones that unlock achievements. The MessageQueue (Redis lists) carries notification delivery. It hands a message out at least once, and the worker pushes each notification at most once.
 
 [CONTEXT-MAP.md](CONTEXT-MAP.md) says which context owns each module, repository and table.
 

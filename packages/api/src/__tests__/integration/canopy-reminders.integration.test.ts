@@ -414,18 +414,21 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         if (!row) throw new Error('Failed to create notification')
         const sent: PushMessage[] = []
         await Effect.runPromise(
-          processMessage({
-            id: `msg-${row.id}`,
-            topic: 'watering_reminder',
-            payload: {
-              userId,
-              notificationIds: [row.id],
-              plantIds: [plantId],
+          processMessage(
+            {
+              id: `msg-${row.id}`,
+              topic: 'watering_reminder',
+              payload: {
+                userId,
+                notificationIds: [row.id],
+                plantIds: [plantId],
+              },
+              retryCount: 0,
+              createdAt: new Date(),
+              scheduledAt: new Date(),
             },
-            retryCount: 0,
-            createdAt: new Date(),
-            scheduledAt: new Date(),
-          }).pipe(
+            'claim-1'
+          ).pipe(
             Effect.provide(
               Layer.mergeAll(
                 WorkerLive,

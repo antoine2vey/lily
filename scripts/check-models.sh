@@ -45,6 +45,17 @@ packages/api/models/usage-reservation.qnt usage_late_refund_lost noChargeWithout
 packages/api/models/usage-reservation.qnt usage_slow_turn neverOverLimit,repliesWithinPlan,noChargeWithoutReply,noUnitTakenByAnotherRefund,settledExactlyOnce,refusedTurnStoresNothing holds
 packages/api/models/usage-reservation.qnt usage_no_sweep noChargeWithoutReply breaks # before 372
 packages/api/models/queue-claims.qnt queue_current unackedDeliveryStaysInRedis,pushedAtMostOnce,deadLetteredOnce,alertedOnce,alertOnlyAfterDeadLetter,failedRowHasItsHoldersDeadLetter,failedRowIsReported holds
+packages/api/models/queue-claims.qnt queue_quiet_consumer unackedDeliveryStaysInRedis,pushedAtMostOnce,deadLetteredOnce,alertedOnce,failedRowIsReported holds # 379 gap 1
+packages/api/models/queue-claims.qnt queue_lost_after_push pushedAtMostOnce,deadLetteredOnce,alertedOnce,failedRowIsReported holds # 379 gap 2
+packages/api/models/queue-claims.qnt queue_lost_after_dead_letter deadLetteredOnce,alertedOnce,failedRowIsReported holds # 379 gap 3
+packages/api/models/queue-claims.qnt queue_slow_discard deadLetteredOnce,alertedOnce holds # 379 gap 4
+packages/api/models/queue-claims.qnt queue_lost_after_alert alertedOnce breaks # an alert is at least once
+packages/api/models/queue-claims.qnt queue_lost_after_alert pushedAtMostOnce,deadLetteredOnce,alertOnlyAfterDeadLetter,failedRowIsReported holds
+packages/api/models/queue-claims.qnt queue_message_row_claim - scenarios # 379 gap 1, the push stamp without the claim of the dequeue
+packages/api/models/queue-claims.qnt queue_before_379 pushedAtMostOnce breaks # before the fix of 379, gaps 1 and 2
+packages/api/models/queue-claims.qnt queue_before_379 deadLetteredOnce breaks # before the fix of 379, gaps 3 and 4
+packages/api/models/queue-claims.qnt queue_before_379 alertedOnce breaks # before the fix of 379, gaps 3 and 4
+packages/api/models/queue-claims.qnt queue_before_379 failedRowIsReported breaks # before the fix of 379, gap 3
 packages/api/models/queue-claims.qnt queue_before_82 pushedAtMostOnce breaks # before 82
 packages/api/models/queue-claims.qnt queue_read_then_mark pushedAtMostOnce breaks # before 82, the scheduler half alone
 packages/api/models/queue-claims.qnt queue_no_delivery_claim pushedAtMostOnce breaks # before 82, the worker half alone
@@ -55,14 +66,6 @@ packages/api/models/queue-claims.qnt queue_retry_requeues_copy - scenarios # bef
 packages/api/models/queue-claims.qnt queue_dead_letter_after_commit failedRowIsReported breaks # before a2f553f7
 packages/api/models/queue-claims.qnt queue_alert_first alertedOnce breaks # before 2717607b
 packages/api/models/queue-claims.qnt queue_alert_first alertOnlyAfterDeadLetter breaks # before 2717607b
-packages/api/models/queue-claims.qnt queue_quiet_consumer unackedDeliveryStaysInRedis holds
-packages/api/models/queue-claims.qnt queue_quiet_consumer pushedAtMostOnce breaks # 379 gap 1
-packages/api/models/queue-claims.qnt queue_slow_discard deadLetteredOnce breaks # 379 gap 4
-packages/api/models/queue-claims.qnt queue_slow_discard alertedOnce breaks # 379 gap 4
-packages/api/models/queue-claims.qnt queue_lost_after_push pushedAtMostOnce breaks # 379 gap 2
-packages/api/models/queue-claims.qnt queue_lost_after_dead_letter deadLetteredOnce breaks # 379 gap 3
-packages/api/models/queue-claims.qnt queue_lost_after_dead_letter alertedOnce breaks # 379 gap 3
-packages/api/models/queue-claims.qnt queue_lost_after_dead_letter failedRowIsReported breaks # 379 gap 3
 '
 
 wanted=$(npx -y -p "@informalsystems/quint@$QUINT_VERSION" -c \

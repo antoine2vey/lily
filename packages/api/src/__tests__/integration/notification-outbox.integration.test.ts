@@ -330,7 +330,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       ])
     })
 
-    it('rolls the third failure back and alerts once while its dead letter cannot be written, so a later redelivery fails it', async () => {
+    it('rolls the third failure back and alerts once while its dead letter cannot be written, so a later redelivery fails it without a second push', async () => {
       await Effect.runPromise(
         Effect.gen(function* () {
           const sqlClient = yield* SqlClient.SqlClient
@@ -416,14 +416,14 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         }),
       ])
       expect(await attemptRows()).toEqual([
-        { status: 'failed', retryCount: 3, deliveryMessageId: message.id },
+        { status: 'failed', retryCount: 2, deliveryMessageId: message.id },
       ])
       expect(await deadLettersFor(message)).toEqual([
         { originalMessageId: message.id },
       ])
     })
 
-    it('reports neither the retry nor the dead letter when the commit that records them is refused', async () => {
+    it('reports neither the retry nor the dead letter when the commit that records them is refused, and the redelivery fails the rows it cannot tell were not pushed', async () => {
       await Effect.runPromise(
         Effect.gen(function* () {
           const sqlClient = yield* SqlClient.SqlClient
@@ -498,12 +498,12 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           summary: 'Message moved to dead letter queue',
         }),
       ])
-      expect(redelivered.warnings).toContain('Retrying notification')
+      expect(redelivered.warnings).not.toContain('Retrying notification')
       expect(
         (await attemptRows()).map((row) => [row.status, row.retryCount]).sort()
       ).toEqual([
-        ['failed', 3],
-        ['pending', 1],
+        ['failed', 0],
+        ['failed', 2],
       ])
       expect(await deadLettersFor(message)).toHaveLength(1)
     })

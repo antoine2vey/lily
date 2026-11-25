@@ -90,6 +90,12 @@ interface SeedRow {
 
 const pendingRow: SeedRow = { status: 'pending', queuedAt: null }
 
+const claimOf = (messageId: string) => `claim-of-${messageId}`
+const dequeueOf = (messageId: string) => ({
+  messageId,
+  claim: claimOf(messageId),
+})
+
 describe.skipIf(!process.env.DATABASE_URL_TEST)(
   'Notification claims - Integration',
   () => {
@@ -138,6 +144,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             queuedAt: row.queuedAt,
             deliveryMessageId: Option.getOrNull(
               Option.fromNullishOr(row.deliveryMessageId)
+            ),
+            deliveryClaim: Option.getOrNull(
+              Option.map(Option.fromNullishOr(row.deliveryMessageId), claimOf)
             ),
           }))
         )
@@ -305,8 +314,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         const [a, b] = await withRepo((repo) =>
           Effect.all(
             [
-              repo.claimForDelivery(ids, 'msg-a'),
-              repo.claimForDelivery(ids, 'msg-b'),
+              repo.claimForDelivery(ids, dequeueOf('msg-a')),
+              repo.claimForDelivery(ids, dequeueOf('msg-b')),
             ],
             { concurrency: 'unbounded' }
           )
@@ -317,7 +326,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         const winner = a.length > 0 ? 'msg-a' : 'msg-b'
         const again = await withRepo((repo) =>
-          repo.claimForDelivery(ids, winner)
+          repo.claimForDelivery(ids, dequeueOf(winner))
         )
         expect(new Set(again)).toEqual(new Set(ids))
       })
@@ -327,19 +336,63 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
 
         await withRepo((repo) =>
           Effect.andThen(
-            repo.claimForDelivery(ids, 'msg-a'),
+            repo.claimForDelivery(ids, dequeueOf('msg-a')),
             repo.markManyAsSent(
               ids.map((id) => ({ id, title: 'New follower', body: 'Ada' }))
             )
           )
         )
         const late = await withRepo((repo) =>
-          repo.claimForDelivery(ids, 'msg-a')
+          repo.claimForDelivery(ids, dequeueOf('msg-a'))
         )
         await withRepo((repo) => repo.markManyAsFailed(ids, 'too late'))
 
         expect(late).toHaveLength(0)
         expect(await statusesOf(ids)).toEqual(['sent'])
+      })
+
+      it('gives a redelivery the rows of the dequeue before it, which then starts no push', async () => {
+        const ids = await insertRows([queuedNow, queuedNow])
+        const first = { messageId: 'msg-a', claim: 'first-dequeue' }
+        const redelivery = { messageId: 'msg-a', claim: 'second-dequeue' }
+
+        const [taken, lost, started] = await withRepo((repo) =>
+          Effect.all([
+            Effect.andThen(
+              repo.claimForDelivery(ids, first),
+              repo.claimForDelivery(ids, redelivery)
+            ),
+            repo.startPush(ids, first.claim),
+            repo.startPush(ids, redelivery.claim),
+          ])
+        )
+
+        expect(new Set(taken)).toEqual(new Set(ids))
+        expect(lost).toEqual([])
+        expect(new Set(started)).toEqual(new Set(ids))
+      })
+
+      it('gives a redelivery nothing once the dequeue before it started its push', async () => {
+        const ids = await insertRows([queuedNow])
+
+        const [started, again, redelivered] = await withRepo((repo) =>
+          Effect.all([
+            Effect.andThen(
+              repo.claimForDelivery(ids, {
+                messageId: 'msg-a',
+                claim: 'first-dequeue',
+              }),
+              repo.startPush(ids, 'first-dequeue')
+            ),
+            repo.startPush(ids, 'first-dequeue'),
+            repo.claimForDelivery(ids, {
+              messageId: 'msg-a',
+              claim: 'second-dequeue',
+            }),
+          ])
+        )
+
+        expect([started, again, redelivered]).toEqual([ids, [], []])
       })
     })
 
@@ -762,7 +815,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           { status: 'pending', scheduledAt: until },
         ])
       })
-      it('moves rows held by the given message and releases their claim', async () => {
+      it('moves rows held by the given dequeue and releases their claim', async () => {
         const original = minutesAgo(5)
         const until = new Date(Date.now() + 60 * 60_000)
         const insertQueued = async (deliveryMessageId: string | null) => {
@@ -777,6 +830,9 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               status: 'queued',
               queuedAt: minutesAgo(1),
               deliveryMessageId,
+              deliveryClaim: Option.getOrNull(
+                Option.map(Option.fromNullishOr(deliveryMessageId), claimOf)
+              ),
             })
             .returning({ id: schema.notifications.id })
           if (!row) throw new Error('Failed to insert a queued row')
@@ -789,7 +845,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         await withRepo((repo) =>
           repo.deferUntil(
             Arr.map([heldId, otherId, unclaimedId], (id) => ({ id, until })),
-            Option.some('msg-mine')
+            Option.some(claimOf('msg-mine'))
           )
         )
 
@@ -844,12 +900,18 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             status: 'queued',
             queuedAt: new Date(),
             deliveryMessageId: messageId,
+            deliveryClaim: claimOf(messageId),
           })
           .where(eq(schema.notifications.id, id))
 
       const retry = (ids: ReadonlyArray<string>, heldBy: string) =>
         withRepo((repo) =>
-          repo.retryLater(ids, heldBy, [firstRetry, secondRetry], 'push down')
+          repo.retryLater(
+            ids,
+            claimOf(heldBy),
+            [firstRetry, secondRetry],
+            'push down'
+          )
         )
 
       it('moves every row the message holds back to pending at the first retry time', async () => {

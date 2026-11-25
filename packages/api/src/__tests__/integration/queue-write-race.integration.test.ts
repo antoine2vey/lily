@@ -232,7 +232,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         )
       const deliver = (message: QueueMessage) =>
         Effect.runPromise(
-          processMessage(message).pipe(
+          processMessage(message, 'claim-1').pipe(
             Effect.provide(workerLayer),
             Effect.provideService(References.MinimumLogLevel, 'None')
           )

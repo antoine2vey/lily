@@ -115,18 +115,21 @@ const runPath = (path: Path, world: World) =>
   Match.value(path).pipe(
     Match.when('worker', () =>
       Effect.asVoid(
-        processMessage({
-          id: 'msg-1',
-          topic: 'watering_reminder',
-          payload: {
-            userId: 'user-1',
-            notificationIds: ['notification-1'],
-            plantIds: ['plant-1'],
+        processMessage(
+          {
+            id: 'msg-1',
+            topic: 'watering_reminder',
+            payload: {
+              userId: 'user-1',
+              notificationIds: ['notification-1'],
+              plantIds: ['plant-1'],
+            },
+            retryCount: 0,
+            createdAt: new Date(),
+            scheduledAt: new Date(),
           },
-          retryCount: 0,
-          createdAt: new Date(),
-          scheduledAt: new Date(),
-        })
+          'claim-1'
+        )
       )
     ),
     Match.when('subscriber', () =>

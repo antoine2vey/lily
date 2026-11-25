@@ -92,7 +92,7 @@ const deliver = (
 ) => {
   const pushes: PushMessage[] = []
   const copies = structuredClone(notifications)
-  return processMessage(message).pipe(
+  return processMessage(message, 'claim-1').pipe(
     Effect.provide(
       Layer.mergeAll(
         MockAlerterLive,
