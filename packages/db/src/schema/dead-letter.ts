@@ -16,13 +16,15 @@ export const UNKNOWN_MESSAGE_ID = 'unknown'
 
 /**
  * The dead letters a message has at most one of. Two entries without a
- * readable id are two messages, and knowledge ingestion builds its ids from
- * the first characters of a chunk, which two chunks can share. Written with
+ * readable id are two messages, knowledge ingestion builds its ids from
+ * the first characters of a chunk, which two chunks can share, and the
+ * outbox relay writes one per consumer of an event and again after each
+ * redrive, under the id of the outbox row. Written with
  * literals, because Postgres matches an `ON CONFLICT` predicate that binds
  * parameters to no partial index.
  */
 export const ONE_DEAD_LETTER_PER_MESSAGE = sql.raw(
-  `"original_message_id" <> '${UNKNOWN_MESSAGE_ID}' AND "topic" <> 'enrichment.chunk_failed'`
+  `"original_message_id" <> '${UNKNOWN_MESSAGE_ID}' AND "topic" <> 'enrichment.chunk_failed' AND "topic" NOT LIKE 'outbox:%'`
 )
 
 export const deadLetterMessages = pgTable(
