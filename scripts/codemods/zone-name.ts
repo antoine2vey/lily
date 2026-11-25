@@ -13,8 +13,11 @@
 // reports as not assignable to ZoneName in ZoneName.make, adding the import.
 // It prints every other reported site, such as a variable or an alias, for a
 // hand fix. Running either pass again changes nothing.
+// A pass that adds the ZoneName import writes it relative to
+// packages/shared/src/domains/common/date/zone-name inside @lily/shared, and
+// skips the file that declares ZoneName. A script keeps its shebang first.
 import { readFileSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 
 import { CANONICAL_TIME_ZONES } from '../../packages/shared/src/domains/notification/time-zones.generated'
 
@@ -32,23 +35,40 @@ const rename = (files: ReadonlyArray<string>) => {
   }
 }
 
+const zoneNameModule = join(
+  root,
+  'packages/shared/src/domains/common/date/zone-name'
+)
+
+const prepend = (source: string, line: string): string => {
+  const shebang = source.match(/^#![^\n]*\n/)
+  return shebang
+    ? `${shebang[0]}${line}${source.slice(shebang[0].length)}`
+    : `${line}${source}`
+}
+
 const addImport = (source: string, file: string): string => {
   if (
-    /\bZoneName\b[^\n]*from '@lily\/shared'|import \{[^}]*\bZoneName\b/s.test(
+    /\bZoneName\b[^\n]*from '@lily\/shared'|import (?:type )?\{[^}]*\bZoneName\b|export const ZoneName\b/s.test(
       source
     )
   )
     return source
+  const path = resolve(file)
+  if (path.startsWith(join(root, 'packages/shared/src/'))) {
+    const specifier = relative(dirname(path), zoneNameModule)
+    return prepend(
+      source,
+      `import { ZoneName } from '${specifier.startsWith('.') ? specifier : `./${specifier}`}'\n`
+    )
+  }
   const fromShared = source.match(/import \{([^}]*)\} from '@lily\/shared'\n/)
-  if (fromShared && !file.includes('/packages/shared/'))
+  if (fromShared)
     return source.replace(
       fromShared[0],
       `import {${fromShared[1].replace(/,?\s*$/, '')}, ZoneName } from '@lily/shared'\n`
     )
-  const specifier = file.includes('/packages/shared/src/__tests__/')
-    ? '../domains/common/date/zone-name'
-    : '@lily/shared'
-  return `import { ZoneName } from '${specifier}'\n${source}`
+  return prepend(source, `import { ZoneName } from '@lily/shared'\n`)
 }
 
 const retype = (files: ReadonlyArray<string>) => {
