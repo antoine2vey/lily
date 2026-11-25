@@ -1,4 +1,7 @@
-import { waitsForALock } from '@lily/api/__tests__/integration/lock-waits'
+import {
+  sessionsWaitingForALock,
+  waitsForALock,
+} from '@lily/api/__tests__/integration/lock-waits'
 import { createMockRevenueCatProvider } from '@lily/api/__tests__/mocks/revenuecat.provider'
 import { SubscriptionRepositoryLive } from '@lily/api/repositories/subscription.repository'
 import { handleRevenueCatWebhook } from '@lily/api/services/subscriptions/endpoints/webhook/handle-revenuecat-webhook'
@@ -15,6 +18,9 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const { Pool } = pg
+
+// The advisory keyspace the pause trigger waits in. No kernel lock uses it.
+const PAUSE_KEYSPACE = 390_390
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)
 
@@ -181,6 +187,62 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       expect(other._tag).toBe('Success')
       expect(whileHeld).toEqual({ other: ['active'], slow: [] })
       expect((await held)._tag).toBe('Success')
+    })
+
+    it('lets the account be deleted while a sync is between its two writes', async () => {
+      const userId = await aUser()
+      await deliver(
+        'INITIAL_PURCHASE',
+        userId,
+        Effect.sync(() => subscriber(userId, inDays(30)))
+      )
+      const pause = `pause_sync_${crypto.randomUUID().replaceAll('-', '')}`
+      const gate = await pool.connect()
+      try {
+        await gate.query('SELECT pg_advisory_lock($1, 0)', [PAUSE_KEYSPACE])
+        await pool.query(
+          `CREATE FUNCTION ${pause}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock(${PAUSE_KEYSPACE}, 0); RETURN NEW; END $$`
+        )
+        await pool.query(
+          `CREATE TRIGGER ${pause} BEFORE INSERT ON subscription_events FOR EACH ROW WHEN (NEW.user_id = '${userId}') EXECUTE FUNCTION ${pause}()`
+        )
+
+        const sync = deliver(
+          'EXPIRATION',
+          userId,
+          Effect.sync(() => subscriber(userId, inDays(-1)))
+        )
+        await sessionsWaitingForALock(pool, 1)
+        const deletion = pool
+          .query('DELETE FROM users WHERE id = $1', [userId])
+          .then(
+            () => 'deleted',
+            (error: { code?: string }) => `failed ${error.code}`
+          )
+        await sessionsWaitingForALock(pool, 2)
+        await gate.query('SELECT pg_advisory_unlock_all()')
+
+        expect(await deletion).toBe('deleted')
+        expect((await sync)._tag).toBe('Success')
+      } finally {
+        await gate.query('SELECT pg_advisory_unlock_all()')
+        gate.release()
+        await pool.query(`DROP FUNCTION IF EXISTS ${pause}() CASCADE`)
+      }
+    })
+
+    it('acknowledges a delivery for an account that no longer exists and writes nothing', async () => {
+      const userId = crypto.randomUUID()
+      userIds.push(userId)
+
+      const delivery = await deliver(
+        'RENEWAL',
+        userId,
+        Effect.sync(() => subscriber(userId, inDays(30)))
+      )
+
+      expect(delivery._tag).toBe('Success')
+      expect(await statusOf(userId)).toEqual([])
     })
   }
 )
