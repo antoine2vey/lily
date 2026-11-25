@@ -2,7 +2,17 @@ import { transitionEach } from '@lily/api/kernel/transition'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { activityPushTokens, deviceTokens } from '@lily/db/schema'
 import { type ActivityPushToken, nowAsDate } from '@lily/shared'
-import { and, eq, gte, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm'
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  ne,
+  or,
+  sql,
+} from 'drizzle-orm'
 import { Array, Context, Effect, Layer, Option, pipe } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
@@ -35,6 +45,8 @@ const mapRow = (
   lastConfirmedAt: row.lastConfirmedAt,
   lastFailedAt: row.lastFailedAt,
   lastStartSentAt: row.lastStartSentAt,
+  startActivityId: row.startActivityId,
+  startConfirmedAt: row.startConfirmedAt,
   updatedAt: row.updatedAt,
 })
 
@@ -84,7 +96,8 @@ export interface IActivityPushTokenRepository {
   ) => Effect.Effect<number, SqlError>
   readonly markStartTokenConfirmed: (
     userId: string,
-    deviceTokenId: string
+    deviceTokenId: string,
+    startId: Option.Option<string>
   ) => Effect.Effect<number, SqlError>
   readonly endOrphanStartTokens: (
     userId: string,
@@ -100,7 +113,8 @@ export interface IActivityPushTokenRepository {
   readonly claimStartTokens: (
     userId: string,
     deviceTokenIds: readonly string[],
-    cutoff: Date
+    cutoff: Date,
+    activityId: string
   ) => Effect.Effect<ReadonlyArray<string>, SqlError>
 }
 
@@ -268,12 +282,29 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
       // Ground truth: an `update` row arriving for a (userId, deviceTokenId)
       // pair proves the start-token for that pair successfully delivered to
       // the device. Stamp the start-row so the eviction sweep won't kill it.
+      // A post that names a start confirms the last start only when it names
+      // that one: the app re-posts every card on screen when it launches, old
+      // ones too. A build that names none confirms the last start, as before
+      // #367, so it keeps gap 2 of #367 until it updates.
       markStartTokenConfirmed: Effect.fn(
         'ActivityPushTokenRepository.markStartTokenConfirmed'
-      )(function* (userId: string, deviceTokenId: string) {
+      )(function* (
+        userId: string,
+        deviceTokenId: string,
+        startId: Option.Option<string>
+      ) {
+        const now = nowAsDate()
         const rows = yield* db
           .update(activityPushTokens)
-          .set({ lastConfirmedAt: nowAsDate(), updatedAt: nowAsDate() })
+          .set({
+            lastConfirmedAt: now,
+            startConfirmedAt: Option.match(startId, {
+              onNone: () => now,
+              onSome: (id) =>
+                sql`CASE WHEN ${activityPushTokens.startActivityId} = ${id} THEN ${now.toISOString()}::timestamptz ELSE ${activityPushTokens.startConfirmedAt} END`,
+            }),
+            updatedAt: now,
+          })
           .where(
             and(
               eq(activityPushTokens.userId, userId),
@@ -326,21 +357,27 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
         return Array.length(rows)
       }),
 
-      // Stamp the moment a push-to-start was dispatched to these devices. The
-      // stamp enforces the start cooldown (see sendStarts in
-      // services/live-activity/cards.ts) and is written BEFORE the APNs call,
-      // so a retry after a timeout cannot double-start.
+      // Stamp the moment a push-to-start was dispatched to these devices, and
+      // the activity id it carries. The stamp enforces the start cooldown (see
+      // sendStarts in services/live-activity/cards.ts) and is written BEFORE
+      // the APNs call, so a retry after a timeout cannot double-start.
       claimStartTokens: Effect.fn(
         'ActivityPushTokenRepository.claimStartTokens'
       )(function* (
         userId: string,
         deviceTokenIds: readonly string[],
-        cutoff: Date
+        cutoff: Date,
+        activityId: string
       ) {
         if (deviceTokenIds.length === 0) return []
         const rows = yield* db
           .update(activityPushTokens)
-          .set({ lastStartSentAt: nowAsDate(), updatedAt: nowAsDate() })
+          .set({
+            lastStartSentAt: nowAsDate(),
+            startActivityId: activityId,
+            startConfirmedAt: null,
+            updatedAt: nowAsDate(),
+          })
           .where(
             and(
               eq(activityPushTokens.userId, userId),
@@ -350,10 +387,7 @@ export const ActivityPushTokenRepositoryLive = Layer.effect(
               or(
                 isNull(activityPushTokens.lastStartSentAt),
                 lt(activityPushTokens.lastStartSentAt, cutoff),
-                gte(
-                  activityPushTokens.lastConfirmedAt,
-                  activityPushTokens.lastStartSentAt
-                )
+                isNotNull(activityPushTokens.startConfirmedAt)
               )
             )
           )

@@ -7,7 +7,7 @@ import type {
   DeviceTokenNotFoundError,
   RegisterActivityTokenRequest,
 } from '@lily/shared'
-import { DateTime, Duration, Effect } from 'effect'
+import { DateTime, Duration, Effect, Option } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
 
 // 10h soft ceiling — safely inside Apple's 12h hard cap. The safety
@@ -40,7 +40,11 @@ export const registerActivityToken = (
 
     // Receiving an update token proves the start-token for this device
     // actually delivered. Stamp it so the eviction sweep spares it.
-    yield* repo.markStartTokenConfirmed(userId, request.deviceTokenId)
+    yield* repo.markStartTokenConfirmed(
+      userId,
+      request.deviceTokenId,
+      Option.fromNullishOr(request.startId)
+    )
 
     return created
   }).pipe(Effect.withSpan('ActivityPushTokensService.registerActivityToken'))

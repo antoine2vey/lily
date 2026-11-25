@@ -28,6 +28,8 @@ describe('registerActivityToken', () => {
       lastConfirmedAt: null,
       lastFailedAt: null,
       lastStartSentAt: null,
+      startActivityId: null,
+      startConfirmedAt: null,
       updatedAt: new Date('2026-04-20'),
     }
     const layer = Layer.mergeAll(
@@ -67,6 +69,8 @@ describe('registerActivityToken', () => {
       lastConfirmedAt: null,
       lastFailedAt: null,
       lastStartSentAt: null,
+      startActivityId: null,
+      startConfirmedAt: null,
       updatedAt: new Date('2026-04-20'),
     }
     const layer = Layer.mergeAll(

@@ -21,14 +21,18 @@ SEED=0x11
 
 # file module invariants verdict # why
 MODELS='
-packages/api/models/la-start.qnt la_current noDuplicateCard holds
-packages/api/models/la-start.qnt la_current oneCardOnScreen breaks # 367 gap 3
+packages/api/models/la-start.qnt la_current noDuplicateCard,oneCardOnScreen holds
 packages/api/models/la-start.qnt la_no_guard noDuplicateCard breaks # 258941ed
 packages/api/models/la-start.qnt la_cooldown15 noDuplicateCard breaks # c474de2e
 packages/api/models/la-start.qnt la_check_then_send noDuplicateCard breaks # before 82
-packages/api/models/la-start.qnt la_hard_cap_12h noDuplicateCard breaks # 367 gap 1
-packages/api/models/la-start.qnt la_confirm_mid_batch noDuplicateCard breaks # 367 gap 2
-packages/api/models/la-start.qnt la_lost_post - scenarios # 367 gap 2
+packages/api/models/la-start.qnt la_hard_cap_12h noDuplicateCard holds
+packages/api/models/la-start.qnt la_hard_cap_12h oneCardOnScreen breaks # soft TTL under the 12h cap
+packages/api/models/la-start.qnt la_cooldown10h noDuplicateCard breaks # before 367, gap 1
+packages/api/models/la-start.qnt la_confirm_mid_batch noDuplicateCard holds
+packages/api/models/la-start.qnt la_confirm_any_post noDuplicateCard breaks # before 367, gap 2
+packages/api/models/la-start.qnt la_lost_post - scenarios
+packages/api/models/la-start.qnt la_lost_post_any_post - scenarios # before 367, gap 2
+packages/api/models/la-start.qnt la_end_first oneCardOnScreen breaks # before 367, gap 3
 packages/api/models/la-start.qnt la_end_delivered noDuplicateCard,oneCardOnScreen holds
 packages/api/models/la-start.qnt la_stale_started_at - scenarios # 367 gap 4, createActivity before its fix
 packages/api/models/usage-reservation.qnt usage_current neverOverLimit,repliesWithinPlan,noChargeWithoutReply,noUnitTakenByAnotherRefund,settledExactlyOnce,refusedTurnStoresNothing holds

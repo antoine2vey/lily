@@ -51,6 +51,8 @@ describe('registerStartToken', () => {
       lastConfirmedAt: null,
       lastFailedAt: null,
       lastStartSentAt: null,
+      startActivityId: null,
+      startConfirmedAt: null,
       updatedAt: new Date('2026-04-01'),
     }
     const liveOnAnotherDevice: ActivityPushToken = {

@@ -45,6 +45,8 @@ const updateToken = (): ActivityPushToken => ({
   lastConfirmedAt: null,
   lastFailedAt: null,
   lastStartSentAt: null,
+  startActivityId: null,
+  startConfirmedAt: null,
   updatedAt: new Date(),
 })
 
