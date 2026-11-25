@@ -1629,6 +1629,7 @@ describe('Canopy', () => {
         expect(world.plans).toEqual([
           {
             ...ending('sam'),
+            members: 'read',
             actor: Option.some('sam'),
             absenceOf: Option.some('sam'),
             plants: PlantScope.Leaver({ userId: 'sam' }),
@@ -1645,6 +1646,7 @@ describe('Canopy', () => {
         expect(world.plans).toEqual([
           {
             ...ending('lily'),
+            members: 'read',
             actor: Option.some('lily'),
             absenceOf: Option.some('lily'),
             plants: PlantScope.Leaver({ userId: 'lily' }),

@@ -470,6 +470,9 @@ export const CanopyLive = Layer.effect(
               body(
                 store.lockAndLoad({
                   ...ending(userId),
+                  // The plants stay, so no notification of another member is
+                  // deleted, and a pin would outlast the purge's photo erasure.
+                  members: 'read',
                   actor: Option.some(userId),
                   absenceOf: Option.some(userId),
                   plants: PlantScope.Leaver({ userId }),

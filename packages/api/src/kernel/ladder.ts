@@ -8,7 +8,7 @@ import { Array, Data, Option, Order, Result } from 'effect'
  * an account row has no rank that fits every transaction. The foreign key of
  * any write that names an account takes it without asking, and nothing here
  * sees that. A transaction that deletes notifications and then makes such a
- * write pins the account first, as the endings of a canopy do.
+ * write pins the account first, as a canopy leave does.
  */
 export const LADDER = [
   'StoreSyncKey',
