@@ -1,6 +1,8 @@
 import type { Notification } from '@lily/shared'
+import { ZoneName } from '@lily/shared'
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import { router } from 'expo-router'
+import { getDeviceTimezone } from '@/utils/notifications'
 import { NotificationsScreen } from '../NotificationsScreen'
 
 let mockItems: Notification[] = []
@@ -18,9 +20,18 @@ jest.mock('@/hooks/useNotifications', () => ({
   useDeleteNotification: jest.fn(() => ({ mutate: jest.fn() })),
 }))
 
+jest.mock('@/utils/notifications', () => ({
+  ...jest.requireActual('@/utils/notifications'),
+  getDeviceTimezone: jest.fn(() => 'UTC'),
+}))
+
 describe('NotificationsScreen', () => {
   beforeEach(() => {
     mockItems = []
+  })
+
+  afterEach(() => {
+    jest.useRealTimers()
   })
 
   it('titles the inbox Notifications, not the settings screen title', () => {
@@ -62,4 +73,54 @@ describe('NotificationsScreen', () => {
 
     expect(router.push).toHaveBeenCalledWith('/(app)/delegation/delegation-a')
   })
+
+  it.each([
+    {
+      zone: 'Europe/Paris',
+      now: '2026-01-16T08:00:00Z',
+      createdAt: '2026-01-15T23:30:00Z',
+      shown: 'Today',
+      hidden: 'Yesterday',
+    },
+    {
+      zone: 'Europe/Paris',
+      now: '2026-01-15T23:45:00Z',
+      createdAt: '2026-01-15T22:30:00Z',
+      shown: 'Yesterday',
+      hidden: 'Today',
+    },
+    {
+      zone: 'America/Los_Angeles',
+      now: '2026-01-16T01:00:00Z',
+      createdAt: '2026-01-15T20:00:00Z',
+      shown: 'Today',
+      hidden: 'Yesterday',
+    },
+  ])(
+    'in $zone at $now, a notification from $createdAt is under $shown',
+    (row) => {
+      jest.useFakeTimers({ now: new Date(row.now) })
+      jest.mocked(getDeviceTimezone).mockReturnValue(ZoneName.make(row.zone))
+      mockItems = [
+        {
+          id: 'notification-1',
+          type: 'watering_reminder',
+          title: 'Water the monstera',
+          body: 'It is thirsty',
+          scheduledAt: new Date(row.createdAt),
+          isRead: true,
+          status: 'sent',
+          retryCount: 0,
+          userId: 'user-1',
+          metadata: {},
+          createdAt: new Date(row.createdAt),
+        },
+      ]
+
+      render(<NotificationsScreen />)
+
+      expect(screen.getByText(row.shown)).toBeTruthy()
+      expect(screen.queryByText(row.hidden)).toBeNull()
+    }
+  )
 })
