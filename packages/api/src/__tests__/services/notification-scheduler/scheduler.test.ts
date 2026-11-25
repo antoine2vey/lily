@@ -1641,6 +1641,8 @@ describe('Notification Scheduler', () => {
     })
 
     it('should enqueue notifications when user has DND enabled but current time is outside window', async () => {
+      vi.useFakeTimers({ toFake: ['Date'] })
+      vi.setSystemTime(new Date('2026-06-15T03:00:30.000Z'))
       const enqueuedMessages: {
         topic: NotificationTopic
         message: QueueMessage
@@ -1665,9 +1667,15 @@ describe('Notification Scheduler', () => {
         userId: 'user-1',
       })
 
-      await runPollAndEnqueue([pendingNotification], [user], (topic, message) =>
-        enqueuedMessages.push({ topic, message })
-      )
+      try {
+        await runPollAndEnqueue(
+          [pendingNotification],
+          [user],
+          (topic, message) => enqueuedMessages.push({ topic, message })
+        )
+      } finally {
+        vi.useRealTimers()
+      }
 
       // This test may be flaky if run exactly at 03:00 UTC but that's extremely unlikely
       expect(enqueuedMessages).toHaveLength(1)
