@@ -1,5 +1,8 @@
 import {
+  DEFAULT_DND_END,
+  DEFAULT_DND_START,
   DEFAULT_NOTIFICATION_TIME,
+  dndBoundOr,
   isInDndWindow,
   parseTime,
   TimeString,
@@ -110,29 +113,21 @@ export interface NotificationScheduleUpdate {
   scheduledAt: Date
 }
 
-const DEFAULT_DND_START = '22:00'
-const DEFAULT_DND_END = '07:00'
-
 const dndBound = (
   time: string | null,
   fallback: string
-): Effect.Effect<string> =>
-  pipe(
-    Option.fromNullishOr(time),
-    Option.match({
-      onNone: () => Effect.succeed(fallback),
-      onSome: (value) =>
-        Schema.is(TimeString)(value)
-          ? Effect.succeed(value)
-          : Effect.as(
-              Effect.logWarning('Invalid DND bound, using the default', {
-                rejected: value,
-                fallback,
-              }),
-              fallback
-            ),
-    })
-  )
+): Effect.Effect<string> => {
+  const bound = dndBoundOr(time, fallback)
+  return time === null || time === bound
+    ? Effect.succeed(bound)
+    : Effect.as(
+        Effect.logWarning('Invalid DND bound, using the default', {
+          rejected: time,
+          fallback,
+        }),
+        bound
+      )
+}
 
 export interface DndBounds {
   readonly start: string

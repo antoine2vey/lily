@@ -2,16 +2,22 @@ import { Array, DateTime, Effect, Option, pipe } from 'effect'
 import { zoneFromName } from '../common/date/timezone'
 import type { ZoneName } from '../common/date/zone-name'
 import { DndWindowBlockedError } from './errors'
-import { isInDndWindow, timeToMinutes } from './timezone'
+import {
+  DEFAULT_DND_END,
+  DEFAULT_DND_START,
+  dndBoundOr,
+  timeToMinutes,
+} from './timezone'
 
 /** Minutes of the local day, `end` excluded. */
-interface SendWindow {
+interface MinuteRange {
   readonly start: number
   readonly end: number
 }
 
-const MORNING: SendWindow = { start: 6 * 60, end: 8 * 60 }
-const EVENING: SendWindow = { start: 18 * 60, end: 22 * 60 }
+const MORNING: MinuteRange = { start: 6 * 60, end: 8 * 60 }
+const EVENING: MinuteRange = { start: 18 * 60, end: 22 * 60 }
+const END_OF_DAY = 24 * 60
 
 /** Who a send time is picked for. */
 export interface SlotRecipient {
@@ -25,44 +31,80 @@ export interface SlotRecipient {
   readonly doNotDisturbEnd: string | null
 }
 
+/** What do-not-disturb covers. A range that crosses midnight is two. */
+const dndRanges = (recipient: SlotRecipient): ReadonlyArray<MinuteRange> => {
+  if (!recipient.doNotDisturb) return []
+
+  const start = timeToMinutes(
+    dndBoundOr(recipient.doNotDisturbStart, DEFAULT_DND_START)
+  )
+  const end = timeToMinutes(
+    dndBoundOr(recipient.doNotDisturbEnd, DEFAULT_DND_END)
+  )
+  if (start === end) return []
+  return start < end
+    ? [{ start, end }]
+    : [
+        { start: 0, end },
+        { start, end: END_OF_DAY },
+      ]
+}
+
+const hasMinutes = ({ start, end }: MinuteRange): boolean => start < end
+
+/** The parts of `range` before and after `cut`. */
+const without = (
+  range: MinuteRange,
+  cut: MinuteRange
+): ReadonlyArray<MinuteRange> =>
+  Array.filter(
+    [
+      { start: range.start, end: Math.min(range.end, cut.start) },
+      { start: Math.max(range.start, cut.end), end: range.end },
+    ],
+    hasMinutes
+  )
+
 /**
- * The windows a send time may fall in, the one the roll prefers first.
- * A window that do-not-disturb covers is left out.
+ * The minutes of each send window that do-not-disturb leaves open, in
+ * ascending ranges, the window the roll prefers first. A window with no open
+ * minute is left out.
  */
 const openWindows = (
   recipient: SlotRecipient,
   randomValue: number
-): ReadonlyArray<SendWindow> => {
-  const preferred = randomValue < 0.5 ? [MORNING, EVENING] : [EVENING, MORNING]
-  if (!recipient.doNotDisturb) return preferred
-
-  const dndStart = timeToMinutes(
-    Option.getOrElse(
-      Option.fromNullishOr(recipient.doNotDisturbStart),
-      () => '22:00'
-    )
-  )
-  const dndEnd = timeToMinutes(
-    Option.getOrElse(
-      Option.fromNullishOr(recipient.doNotDisturbEnd),
-      () => '07:00'
-    )
-  )
-  // Simplified: a window is covered when its first and last minutes are.
-  return Array.filter(
-    preferred,
-    ({ start, end }) =>
-      !(
-        isInDndWindow(start, dndStart, dndEnd) &&
-        isInDndWindow(end - 1, dndStart, dndEnd)
+): ReadonlyArray<ReadonlyArray<MinuteRange>> =>
+  pipe(
+    randomValue < 0.5 ? [MORNING, EVENING] : [EVENING, MORNING],
+    Array.map((window) =>
+      Array.reduce(
+        dndRanges(recipient),
+        [window] as ReadonlyArray<MinuteRange>,
+        (open, cut) => Array.flatMap(open, (range) => without(range, cut))
       )
+    ),
+    Array.filter(Array.isReadonlyArrayNonEmpty)
   )
-}
 
-/** Each half of the roll's range spreads over the whole window. */
-const minuteIn = ({ start, end }: SendWindow, randomValue: number): number => {
+/** Each half of the roll's range spreads over every open minute. */
+const minuteIn = (
+  open: ReadonlyArray<MinuteRange>,
+  randomValue: number
+): number => {
   const position = randomValue < 0.5 ? randomValue * 2 : (randomValue - 0.5) * 2
-  return start + Math.floor(position * (end - start))
+  const offset = Math.floor(
+    position * Array.reduce(open, 0, (total, r) => total + r.end - r.start)
+  )
+  // The ranges ascend, so the last one that starts at or before the offset
+  // holds it.
+  return Array.reduce(
+    open,
+    { before: 0, minute: 0 },
+    ({ before, minute }, { start, end }) => ({
+      before: before + end - start,
+      minute: offset >= before ? start + offset - before : minute,
+    })
+  ).minute
 }
 
 const localNow = (timezone: ZoneName) =>
@@ -132,12 +174,13 @@ export const pickUpcomingNotificationTime = (
   const nextMinute = hour * 60 + minute + 1
   return Effect.succeed(
     pipe(
-      Array.map(open, ({ start, end }) => ({
-        start: Math.max(start, nextMinute),
-        end,
-      })),
-      Array.findFirst(({ start, end }) => start < end),
-      Option.map((window) => todayAtMinute(now, minuteIn(window, randomValue)))
+      Array.map(open, (window) =>
+        Array.flatMap(window, (range) =>
+          without(range, { start: 0, end: nextMinute })
+        )
+      ),
+      Array.findFirst(Array.isReadonlyArrayNonEmpty),
+      Option.map((left) => todayAtMinute(now, minuteIn(left, randomValue)))
     )
   )
 }
