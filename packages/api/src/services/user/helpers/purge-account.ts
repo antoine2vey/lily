@@ -4,7 +4,7 @@ import { DeadLetterRepository } from '@lily/api/repositories/dead-letter.reposit
 import { SubscriptionRepository } from '@lily/api/repositories/subscription.repository'
 import { UserRepository } from '@lily/api/repositories/user.repository'
 import { eraseAccountPhotos } from '@lily/api/services/user/helpers/erase-account-photos'
-import { Effect } from 'effect'
+import { Effect, Option } from 'effect'
 
 export const purgeAccount = (userId: string) =>
   Effect.gen(function* () {
@@ -16,15 +16,21 @@ export const purgeAccount = (userId: string) =>
 
     // Deleted after the user: a webhook that holds the account makes that
     // delete wait until its event commits, so this delete then sees the event.
+    // They match the id as text, so they take it from the deleted row, which
+    // Postgres answers in lowercase whatever case the caller gave.
     return yield* canopy.leaveForDeletion(userId)(
       eraseAccountPhotos(userId).pipe(
         Effect.andThen(absence.releaseForDeletion(userId)),
         Effect.andThen(userRepo.delete(userId)),
-        Effect.tap(() =>
-          Effect.andThen(
-            subscriptionRepo.deleteWebhookEvents(userId),
-            deadLetterRepo.deleteNaming(userId)
-          )
+        Effect.tap((deleted) =>
+          Option.match(Option.fromNullishOr(deleted), {
+            onNone: () => Effect.void,
+            onSome: ({ id }) =>
+              Effect.andThen(
+                subscriptionRepo.deleteWebhookEvents(id),
+                deadLetterRepo.deleteNaming(id)
+              ),
+          })
         )
       )
     )
