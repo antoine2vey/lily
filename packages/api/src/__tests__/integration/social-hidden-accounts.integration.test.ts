@@ -13,9 +13,9 @@ import { getUserFollowing } from '@lily/api/services/social/endpoints/get-user-f
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
 import { failureOf } from '@lily/shared/testing'
-import { eq, inArray } from 'drizzle-orm'
+import { inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
-import { Array, ConfigProvider, Effect, Layer, Order } from 'effect'
+import { Array, ConfigProvider, Effect, Exit, Layer, Order } from 'effect'
 import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
@@ -216,20 +216,51 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       }
     )
 
-    it('a restored account shows again in the list and the count', async () => {
-      await db
-        .update(schema.users)
-        .set({ status: 'active', deletedAt: null })
-        .where(eq(schema.users.id, idOf('leavingFollower')))
+    it('an account an admin puts back to active shows again in every social read', async () => {
+      await Effect.runPromise(
+        Effect.gen(function* () {
+          const users = yield* UserRepository
+          yield* users.updateStatus(idOf('leavingFollower'), 'active')
+          yield* users.update(idOf('leavingFollowee'), { status: 'active' })
+        }).pipe(Effect.provide(ReposLive))
+      )
+
+      const found = await Effect.runPromise(
+        Effect.gen(function* () {
+          const repo = yield* FollowRepository
+          const { items } = yield* repo.searchUsers({
+            query: `h${run}_leavingFollow`,
+            currentUserId: idOf('viewer'),
+          })
+          return names(items)
+        }).pipe(Effect.provide(ReposLive))
+      )
+      const profile = await Effect.runPromiseExit(
+        getPublicProfile(idOf('leavingFollowee')).pipe(
+          Effect.map(({ name, followerCount }) => ({ name, followerCount })),
+          Effect.provide(seenBy('viewer'))
+        )
+      )
 
       expect(await list('getFollowers', 'viewer')).toEqual({
         names: [nameOf('friend'), nameOf('leavingFollower')],
         total: 2,
       })
+      expect(await list('getFollowing', 'viewer')).toEqual({
+        names: [nameOf('friend'), nameOf('leavingFollowee')],
+        total: 2,
+      })
       expect(await profileCounts()).toEqual({
         followerCount: 2,
-        followingCount: 1,
+        followingCount: 2,
       })
+      expect(found).toEqual([
+        nameOf('leavingFollowee'),
+        nameOf('leavingFollower'),
+      ])
+      expect(profile).toEqual(
+        Exit.succeed({ name: nameOf('leavingFollowee'), followerCount: 1 })
+      )
     })
   }
 )
