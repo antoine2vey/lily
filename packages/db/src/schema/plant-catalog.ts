@@ -1,4 +1,5 @@
 import { languageCodeEnum } from '@lily/db/schema/enums'
+import { rating, ratingRange } from '@lily/db/schema/rating'
 import { storedRef } from '@lily/db/schema/stored-ref'
 import { relations } from 'drizzle-orm'
 import {
@@ -10,6 +11,7 @@ import {
   unique,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { Array } from 'effect'
 
 export const plantCatalog = pgTable(
   'plant_catalog',
@@ -26,11 +28,10 @@ export const plantCatalog = pgTable(
     mistingFrequencyDays: integer('misting_frequency_days'),
     repottingFrequencyDays: integer('repotting_frequency_days'),
 
-    // Ratings (0-100 scale)
-    humidityRating: integer('humidity_rating').notNull(),
-    lightingRating: integer('lighting_rating').notNull(),
-    petToxicityRating: integer('pet_toxicity_rating').notNull(),
-    wateringRating: integer('watering_rating').notNull(),
+    humidityRating: rating('humidity_rating'),
+    lightingRating: rating('lighting_rating'),
+    petToxicityRating: rating('pet_toxicity_rating'),
+    wateringRating: rating('watering_rating'),
 
     // Light requirement in lux (raw value for scanner matching)
     luxNeeded: integer('lux_needed'),
@@ -43,7 +44,18 @@ export const plantCatalog = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index('plant_catalog_category_idx').on(table.category)]
+  (table) => [
+    index('plant_catalog_category_idx').on(table.category),
+    ...Array.map(
+      [
+        table.humidityRating,
+        table.lightingRating,
+        table.petToxicityRating,
+        table.wateringRating,
+      ],
+      (column) => ratingRange('plant_catalog', column)
+    ),
+  ]
 )
 
 export const plantCatalogTranslations = pgTable(

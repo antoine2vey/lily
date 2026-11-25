@@ -26,6 +26,7 @@ import { deleteMyCanopy } from '@lily/api/services/canopy/endpoints/delete-my-ca
 import { removeCanopyMember } from '@lily/api/services/canopy/endpoints/remove-canopy-member'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer } from 'effect'
@@ -66,10 +67,10 @@ const run = <A, E>(
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)

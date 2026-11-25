@@ -13,6 +13,7 @@ import {
 import { PgLive } from '@lily/db'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import {
@@ -90,10 +91,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values(
           Array.makeBy(4, (n) => ({
             name: `follow-up plant ${n}`,
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
             userId,
             createdByUserId: userId,
           }))

@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
-import { TIME_ZONE_ALIASES, ZoneName } from '@lily/shared'
+import { Rating, TIME_ZONE_ALIASES, ZoneName } from '@lily/shared'
 import { asc, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Record } from 'effect'
@@ -91,10 +91,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           ...owner,
           createdByUserId: traveller,
           name,
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning({ id: schema.plants.id })
       if (!row) throw new Error(`Failed to create plant ${name}`)

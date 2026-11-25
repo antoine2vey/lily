@@ -9,6 +9,7 @@ import {
 } from '@lily/api/services/file/stored-object'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -116,10 +117,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         createdByUserId: sam,
         name: 'Fern',
         health: 'HEALTHY',
-        humidityRating: 3,
-        lightingRating: 3,
-        petToxicityRating: 1,
-        wateringRating: 3,
+        humidityRating: Rating.make(3),
+        lightingRating: Rating.make(3),
+        petToxicityRating: Rating.make(1),
+        wateringRating: Rating.make(3),
       })
     })
 

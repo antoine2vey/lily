@@ -1,5 +1,11 @@
 import type { Plan } from '@lily/api/contexts/care/domain/plan'
-import type { CareDay, CareType, PlantOwner, ZoneName } from '@lily/shared'
+import type {
+  CareDay,
+  CareType,
+  PlantOwner,
+  Rating,
+  ZoneName,
+} from '@lily/shared'
 import { Data, DateTime, Option, Schema } from 'effect'
 
 /** Care days between two cares. */
@@ -51,10 +57,10 @@ export interface PlantDraft {
   readonly name: string
   readonly description: Option.Option<string>
   readonly category: Option.Option<string>
-  readonly humidityRating: number
-  readonly lightingRating: number
-  readonly petToxicityRating: number
-  readonly wateringRating: number
+  readonly humidityRating: Rating
+  readonly lightingRating: Rating
+  readonly petToxicityRating: Rating
+  readonly wateringRating: Rating
   readonly potWidthCm: Option.Option<number>
   readonly potHeightCm: Option.Option<number>
   readonly roomId: Option.Option<string>

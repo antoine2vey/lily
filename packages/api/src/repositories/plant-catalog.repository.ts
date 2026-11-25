@@ -1,6 +1,6 @@
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCatalog } from '@lily/db/schema'
-import type { LanguageCode } from '@lily/shared'
+import type { LanguageCode, Rating } from '@lily/shared'
 import { ilike, or, sql } from 'drizzle-orm'
 import { Array, Context, Effect, Layer } from 'effect'
 import type { SqlError } from 'effect/sql/SqlError'
@@ -17,10 +17,10 @@ export interface CatalogPlantRow {
   fertilizationFrequencyDays: number | null
   mistingFrequencyDays: number | null
   repottingFrequencyDays: number | null
-  humidityRating: number
-  lightingRating: number
-  petToxicityRating: number
-  wateringRating: number
+  humidityRating: Rating
+  lightingRating: Rating
+  petToxicityRating: Rating
+  wateringRating: Rating
   luxNeeded: number | null
 }
 

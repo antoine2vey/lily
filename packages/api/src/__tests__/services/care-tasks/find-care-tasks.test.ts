@@ -16,7 +16,7 @@ import { createMockPlantRepository } from '@lily/api/__tests__/mocks/plant.repos
 import { createMockCurrentUser } from '@lily/api/__tests__/mocks/session'
 import { createMockUserRepository } from '@lily/api/__tests__/mocks/user.repository'
 import { findCareTasks } from '@lily/api/services/care-tasks/endpoints/find-care-tasks'
-import { CARE_TASK_WINDOW_DAYS, ZoneName } from '@lily/shared'
+import { CARE_TASK_WINDOW_DAYS, Rating, ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { Array, Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -46,10 +46,10 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       category: 'tropical',
       dateAdded: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
-      humidityRating: 4,
-      lightingRating: 3,
-      petToxicityRating: 2,
-      wateringRating: 3,
+      humidityRating: Rating.make(4),
+      lightingRating: Rating.make(3),
+      petToxicityRating: Rating.make(2),
+      wateringRating: Rating.make(3),
       health: 'HEALTHY',
       scheduleSpecs: [
         wateringSpec({
@@ -83,10 +83,10 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       category: 'succulent',
       dateAdded: new Date('2024-01-02'),
       updatedAt: new Date('2024-01-02'),
-      humidityRating: 2,
-      lightingRating: 2,
-      petToxicityRating: 3,
-      wateringRating: 1,
+      humidityRating: Rating.make(2),
+      lightingRating: Rating.make(2),
+      petToxicityRating: Rating.make(3),
+      wateringRating: Rating.make(1),
       health: 'THRIVING',
       scheduleSpecs: [
         wateringSpec({
@@ -115,10 +115,10 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       category: 'tropical',
       dateAdded: new Date('2024-01-03'),
       updatedAt: new Date('2024-01-03'),
-      humidityRating: 4,
-      lightingRating: 4,
-      petToxicityRating: 2,
-      wateringRating: 4,
+      humidityRating: Rating.make(4),
+      lightingRating: Rating.make(4),
+      petToxicityRating: Rating.make(2),
+      wateringRating: Rating.make(4),
       health: 'HEALTHY',
       scheduleSpecs: [
         wateringSpec({
@@ -152,10 +152,10 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       category: 'succulent',
       dateAdded: new Date('2024-01-04'),
       updatedAt: new Date('2024-01-04'),
-      humidityRating: 1,
-      lightingRating: 5,
-      petToxicityRating: 1,
-      wateringRating: 1,
+      humidityRating: Rating.make(1),
+      lightingRating: Rating.make(5),
+      petToxicityRating: Rating.make(1),
+      wateringRating: Rating.make(1),
       health: 'THRIVING',
       scheduleSpecs: [
         wateringSpec({
@@ -184,10 +184,10 @@ const createMockPlantsForCareTasks = (referenceDate: Date): TestPlant[] => {
       category: 'tropical',
       dateAdded: new Date('2024-01-05'),
       updatedAt: new Date('2024-01-05'),
-      humidityRating: 3,
-      lightingRating: 3,
-      petToxicityRating: 0,
-      wateringRating: 3,
+      humidityRating: Rating.make(3),
+      lightingRating: Rating.make(3),
+      petToxicityRating: Rating.make(0),
+      wateringRating: Rating.make(3),
       health: 'HEALTHY',
       scheduleSpecs: [
         wateringSpec({
@@ -224,10 +224,10 @@ const createMockPlantsNoCare = (referenceDate: Date): TestPlant[] => {
       category: 'tropical',
       dateAdded: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-01'),
-      humidityRating: 3,
-      lightingRating: 3,
-      petToxicityRating: 0,
-      wateringRating: 3,
+      humidityRating: Rating.make(3),
+      lightingRating: Rating.make(3),
+      petToxicityRating: Rating.make(0),
+      wateringRating: Rating.make(3),
       health: 'HEALTHY',
       scheduleSpecs: [
         wateringSpec({
@@ -465,10 +465,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY' as const,
           scheduleSpecs: [
             wateringSpec({
@@ -497,10 +497,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-02'),
           updatedAt: new Date('2024-01-02'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY' as const,
           scheduleSpecs: [
             wateringSpec({
@@ -529,10 +529,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-03'),
           updatedAt: new Date('2024-01-03'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY' as const,
           scheduleSpecs: [
             wateringSpec({
@@ -630,10 +630,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY',
           scheduleSpecs: [
             wateringSpec({
@@ -696,10 +696,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY',
           scheduleSpecs: [
             wateringSpec({
@@ -771,10 +771,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY',
           scheduleSpecs: [
             wateringSpec({
@@ -899,10 +899,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY',
           scheduleSpecs: [
             wateringSpec({
@@ -960,10 +960,10 @@ describe('findCareTasks', () => {
           category: 'tropical',
           dateAdded: new Date('2024-01-01'),
           updatedAt: new Date('2024-01-01'),
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 0,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(0),
+          wateringRating: Rating.make(3),
           health: 'HEALTHY' as const,
           scheduleSpecs: [
             wateringSpec({

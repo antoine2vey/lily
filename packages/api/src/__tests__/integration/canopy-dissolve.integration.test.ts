@@ -48,6 +48,7 @@ import {
   CANOPY_MAX_MEMBERS,
   CanopyFullError,
   CanopyId,
+  Rating,
   UserNotFoundError,
 } from '@lily/shared'
 import { CarePlanNotFoundError } from '@lily/shared/errors/care-plan'
@@ -108,10 +109,10 @@ const proposeRescue = (plantId: string, authorId: string) =>
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const inDays = (days: number) => new Date(Date.now() + days * 86_400_000)

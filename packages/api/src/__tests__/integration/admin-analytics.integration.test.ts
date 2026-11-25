@@ -5,6 +5,7 @@ import {
 } from '@lily/api/repositories/analytics.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import type { UsersByStatusResponse } from '@lily/shared/admin/analytics'
 import { defectOf } from '@lily/shared/testing'
 import { and, eq, inArray } from 'drizzle-orm'
@@ -45,10 +46,10 @@ const limitLabel = `analytics-limit-${suffix}`
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const sum = <A>(rows: ReadonlyArray<A>, count: (a: A) => number) =>

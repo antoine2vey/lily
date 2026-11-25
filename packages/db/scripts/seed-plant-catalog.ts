@@ -10,6 +10,7 @@
 import { DrizzleLive } from '@lily/db'
 import * as PgDrizzle from '@lily/db/effect-drizzle'
 import { plantCatalog, plantCatalogTranslations } from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { CATALOG } from '@lily/shared/plant-catalog'
 import { eq } from 'drizzle-orm'
 import { Console, Effect } from 'effect'
@@ -67,10 +68,10 @@ const seedPlantCatalog = Effect.gen(function* () {
         fertilizationFrequencyDays: entry.fertilizationFrequencyDays,
         mistingFrequencyDays: entry.mistingFrequencyDays,
         repottingFrequencyDays: entry.repottingFrequencyDays,
-        humidityRating: entry.humidityRating,
-        lightingRating: entry.lightingRating,
-        petToxicityRating: entry.petToxicityRating,
-        wateringRating: entry.wateringRating,
+        humidityRating: Rating.make(entry.humidityRating),
+        lightingRating: Rating.make(entry.lightingRating),
+        petToxicityRating: Rating.make(entry.petToxicityRating),
+        wateringRating: Rating.make(entry.wateringRating),
         luxNeeded: entry.luxNeeded,
       })
       .returning()

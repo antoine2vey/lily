@@ -32,6 +32,7 @@ import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { releaseAccount } from '@lily/api/services/user/helpers/release-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, eq, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -75,10 +76,10 @@ const BaseLive = Layer.mergeAll(
 
 const plantValues = {
   name: 'Monstera',
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 interface World {

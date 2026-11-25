@@ -39,6 +39,7 @@ import {
   CanopyNotFoundError,
   PlantInDelegationError,
   type PlantOwner,
+  Rating,
 } from '@lily/shared'
 import {
   PlantNotAuthorizedError,
@@ -483,7 +484,7 @@ describe('createPlant with owner canopy', () => {
     name: 'Shared monstera',
     wateringFrequencyDays: 7,
     luxNeeded: 2000,
-    petToxicityRating: 1,
+    petToxicityRating: Rating.make(1),
     owner: 'canopy' as const,
   }
 

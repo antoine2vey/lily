@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
-import { wateringRatingFromFrequency } from '@lily/shared'
+import { Rating, wateringRatingFromFrequency } from '@lily/shared'
 import { DEFAULT_HUMIDITY_RATING } from '@lily/shared/indoor-demand'
 import type { StoredObjectRef } from '@lily/shared/services/file/stored-ref-mint'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
@@ -48,10 +48,10 @@ interface Case {
   readonly creator: Creator
   readonly owner?: Creator
   readonly dateAdded: Date
-  readonly humidityRating: number
-  readonly wateringRating: number
-  readonly lightingRating: number
-  readonly petToxicityRating: number
+  readonly humidityRating: Rating
+  readonly wateringRating: Rating
+  readonly lightingRating: Rating
+  readonly petToxicityRating: Rating
   readonly description?: string
   readonly imageUrl?: StoredObjectRef
   readonly category?: string
@@ -62,10 +62,10 @@ interface Case {
 
 const mcpShape = {
   creator: 'mcpLinked',
-  humidityRating: 0,
-  wateringRating: 0,
-  lightingRating: 50,
-  petToxicityRating: 100,
+  humidityRating: Rating.make(0),
+  wateringRating: Rating.make(0),
+  lightingRating: Rating.make(50),
+  petToxicityRating: Rating.make(100),
   wateringDays: 4,
 } as const
 
@@ -77,10 +77,10 @@ const bandCases: ReadonlyArray<Case> = Array.map(BAND_DAYS, (days) => ({
   name: `created while create stored watering 0, every ${days} days`,
   creator: 'appOnly',
   dateAdded: BEFORE_WATERING_FIELD,
-  humidityRating: 50,
-  wateringRating: 0,
-  lightingRating: 50,
-  petToxicityRating: 100,
+  humidityRating: Rating.make(50),
+  wateringRating: Rating.make(0),
+  lightingRating: Rating.make(50),
+  petToxicityRating: Rating.make(100),
   wateringDays: days,
   expected: { humidity: 50, watering: wateringRatingFromFrequency(days) },
 }))
@@ -90,10 +90,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'scanned with an AI pet rating, watering omitted',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 70,
-    petToxicityRating: 20,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(20),
     wateringDays: 7,
     expected: { humidity: 60, watering: wateringRatingFromFrequency(7) },
   },
@@ -101,10 +101,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'scanned with a pet rating of 60 outside the 0087 names',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 70,
-    petToxicityRating: 60,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(60),
     wateringDays: 10,
     expected: { humidity: 60, watering: wateringRatingFromFrequency(10) },
   },
@@ -112,10 +112,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'Pothos',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 50,
-    petToxicityRating: 60,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(60),
     wateringDays: 7,
     expected: { humidity: 60, watering: 0 },
   },
@@ -123,10 +123,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'Rubber Plant',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 70,
-    petToxicityRating: 20,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(20),
     wateringDays: 7,
     expected: { humidity: 60, watering: wateringRatingFromFrequency(7) },
   },
@@ -134,10 +134,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'created while create stored watering 0, watering set to 30 since',
     creator: 'appOnly',
     dateAdded: BEFORE_WATERING_FIELD,
-    humidityRating: 50,
-    wateringRating: 30,
-    lightingRating: 50,
-    petToxicityRating: 100,
+    humidityRating: Rating.make(50),
+    wateringRating: Rating.make(30),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(100),
     wateringDays: 4,
     expected: { humidity: 50, watering: 30 },
   },
@@ -145,10 +145,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'scanned with an AI pet rating and watering 30',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 60,
-    wateringRating: 30,
-    lightingRating: 70,
-    petToxicityRating: 20,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(30),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(20),
     wateringDays: 4,
     expected: { humidity: 60, watering: 30 },
   },
@@ -156,10 +156,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'created while create stored watering 0, at the merge of 35120868',
     creator: 'appOnly',
     dateAdded: WATERING_FIELD_MERGE,
-    humidityRating: 50,
-    wateringRating: 0,
-    lightingRating: 50,
-    petToxicityRating: 100,
+    humidityRating: Rating.make(50),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(100),
     wateringDays: 4,
     expected: { humidity: 50, watering: wateringRatingFromFrequency(4) },
   },
@@ -167,10 +167,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'scanned at the merge of the watering fix',
     creator: 'appOnly',
     dateAdded: WATERING_FIX_MERGE,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 70,
-    petToxicityRating: 20,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(20),
     wateringDays: 7,
     expected: { humidity: 60, watering: wateringRatingFromFrequency(7) },
   },
@@ -178,10 +178,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'manual watering slider dragged to 0',
     creator: 'appOnly',
     dateAdded: SUMMER,
-    humidityRating: 40,
-    wateringRating: 0,
-    lightingRating: 50,
-    petToxicityRating: 0,
+    humidityRating: Rating.make(40),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(0),
     wateringDays: 7,
     expected: { humidity: 40, watering: 0 },
   },
@@ -189,10 +189,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'manual humidity slider dragged to 0',
     creator: 'mcpLinked',
     dateAdded: SUMMER,
-    humidityRating: 0,
-    wateringRating: 30,
-    lightingRating: 50,
-    petToxicityRating: 100,
+    humidityRating: Rating.make(0),
+    wateringRating: Rating.make(30),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(100),
     wateringDays: 7,
     expected: { humidity: 0, watering: 30 },
   },
@@ -224,7 +224,7 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'MCP shaped with lighting 70',
     ...mcpShape,
     dateAdded: MCP_ERA,
-    lightingRating: 70,
+    lightingRating: Rating.make(70),
     expected: { humidity: 0, watering: 0 },
   },
   {
@@ -245,21 +245,21 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'MCP shaped with an AI pet rating',
     ...mcpShape,
     dateAdded: MCP_ERA,
-    petToxicityRating: 20,
+    petToxicityRating: Rating.make(20),
     expected: { humidity: 0, watering: wateringRatingFromFrequency(4) },
   },
   {
     name: 'MCP shaped with humidity 50',
     ...mcpShape,
     dateAdded: MCP_ERA,
-    humidityRating: 50,
+    humidityRating: Rating.make(50),
     expected: { humidity: 50, watering: 0 },
   },
   {
     name: 'MCP shaped with watering 30',
     ...mcpShape,
     dateAdded: MCP_ERA,
-    wateringRating: 30,
+    wateringRating: Rating.make(30),
     expected: { humidity: 0, watering: 30 },
   },
   {
@@ -310,10 +310,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'scanned after the watering fix',
     creator: 'appOnly',
     dateAdded: AFTER_WATERING_FIX,
-    humidityRating: 60,
-    wateringRating: 0,
-    lightingRating: 70,
-    petToxicityRating: 20,
+    humidityRating: Rating.make(60),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(70),
+    petToxicityRating: Rating.make(20),
     wateringDays: 7,
     expected: { humidity: 60, watering: 0 },
   },
@@ -321,10 +321,10 @@ const predicateCases: ReadonlyArray<Case> = [
     name: 'created while create stored watering 0, fertilization schedule only',
     creator: 'appOnly',
     dateAdded: BEFORE_WATERING_FIELD,
-    humidityRating: 50,
-    wateringRating: 0,
-    lightingRating: 50,
-    petToxicityRating: 100,
+    humidityRating: Rating.make(50),
+    wateringRating: Rating.make(0),
+    lightingRating: Rating.make(50),
+    petToxicityRating: Rating.make(100),
     fertilizationDays: 30,
     expected: { humidity: 50, watering: 0 },
   },
@@ -407,7 +407,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         byNameThenRating
       )
 
-    const setWatering = (plant: string, wateringRating: number) =>
+    const setWatering = (plant: string, wateringRating: Rating) =>
       db
         .update(schema.plants)
         .set({ wateringRating })
@@ -516,7 +516,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('changes nothing when it runs again, even a 0 the user set since', async () => {
       await migrate()
       expect((await ratings())[EVERY_9_DAYS]?.watering).toBe(30)
-      await setWatering(EVERY_9_DAYS, 0)
+      await setWatering(EVERY_9_DAYS, Rating.make(0))
       const once = { ratings: await ratings(), audit: await audit() }
 
       await migrate()
@@ -529,7 +529,7 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
       const before = await ratings()
       await migrate()
       expect(await ratings()).not.toEqual(before)
-      await setWatering(EVERY_9_DAYS, 80)
+      await setWatering(EVERY_9_DAYS, Rating.make(80))
 
       await runSql(UNDO)
 

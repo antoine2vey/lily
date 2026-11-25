@@ -8,6 +8,7 @@ import { createMockWeatherCache } from '@lily/api/__tests__/mocks/weather-cache'
 import { createMockWeatherProvider } from '@lily/api/__tests__/mocks/weather-provider'
 import { CurrentUser } from '@lily/api/services/auth/middleware.types'
 import { getCareAdjustments } from '@lily/api/services/weather/endpoints/get-care-adjustments'
+import { Rating } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Layer } from 'effect'
 import { describe, expect, it } from 'vitest'
@@ -16,15 +17,15 @@ const mockPlant = {
   id: 'plant-1',
   name: 'Test Plant',
   category: 'Foliage',
-  wateringRating: 50,
+  wateringRating: Rating.make(50),
   userId: 'user-1',
   canopyId: null,
   createdByUserId: 'user-1',
   description: null,
   imageUrl: null,
-  humidityRating: 50,
-  lightingRating: 50,
-  petToxicityRating: 10,
+  humidityRating: Rating.make(50),
+  lightingRating: Rating.make(50),
+  petToxicityRating: Rating.make(10),
   health: 'HEALTHY' as const,
   dateAdded: new Date(),
   createdAt: new Date(),

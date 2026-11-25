@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Record as R } from 'effect'
@@ -229,10 +230,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           .insert(schema.plants)
           .values({
             name: scenario.name,
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
             userId: ids.owner,
             createdByUserId: ids.owner,
           })

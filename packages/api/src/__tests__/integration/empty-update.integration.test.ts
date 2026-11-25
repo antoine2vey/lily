@@ -8,6 +8,7 @@ import {
 } from '@lily/api/repositories/user.repository'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { eq } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { ConfigProvider, Effect, Layer } from 'effect'
@@ -55,10 +56,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
         .values({
           userId,
           name: 'Pothos',
-          humidityRating: 1,
-          lightingRating: 1,
-          petToxicityRating: 1,
-          wateringRating: 1,
+          humidityRating: Rating.make(1),
+          lightingRating: Rating.make(1),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(1),
         })
         .returning()
       plantId = plant!.id

@@ -1,5 +1,5 @@
 import { MaterialIcons } from '@expo/vector-icons'
-import { getFrequencyDays, isPetSafe } from '@lily/shared'
+import { getFrequencyDays, isPetSafe, PET_TOXICITY_RATING } from '@lily/shared'
 import { Option } from 'effect'
 import { router, useLocalSearchParams } from 'expo-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -205,7 +205,9 @@ export function EditPlantScreen() {
           wateringRating: watering,
           lightingRating: light,
           humidityRating: humidity,
-          petToxicityRating: petSafe ? 0 : 100,
+          petToxicityRating: petSafe
+            ? PET_TOXICITY_RATING.petSafe
+            : PET_TOXICITY_RATING.notMarkedSafe,
           wateringFrequencyDays,
           fertilizationFrequencyDays: fertilizationEnabled
             ? fertilizationFrequencyDays

@@ -1,4 +1,5 @@
 import { Schema } from 'effect'
+import { Rating } from '../plant/schema'
 
 export const CatalogPlant = Schema.Struct({
   id: Schema.String,
@@ -12,10 +13,10 @@ export const CatalogPlant = Schema.Struct({
   fertilizationFrequencyDays: Schema.NullOr(Schema.Finite),
   mistingFrequencyDays: Schema.NullOr(Schema.Finite),
   repottingFrequencyDays: Schema.NullOr(Schema.Finite),
-  humidityRating: Schema.Finite,
-  lightingRating: Schema.Finite,
-  petToxicityRating: Schema.Finite,
-  wateringRating: Schema.Finite,
+  humidityRating: Rating,
+  lightingRating: Rating,
+  petToxicityRating: Rating,
+  wateringRating: Rating,
   luxNeeded: Schema.NullOr(Schema.Finite),
 })
 

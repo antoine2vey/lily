@@ -37,7 +37,7 @@ import { GCSService } from '@lily/api/services/file/gcs'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays, ZoneName } from '@lily/shared'
+import { CareDays, Rating, ZoneName } from '@lily/shared'
 import { defectOf } from '@lily/shared/testing'
 import { asc, count, eq, inArray, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -76,10 +76,10 @@ const careLayer = (publishedEvents: AppEvent[] = []) =>
 
 const ratings = {
   health: 'HEALTHY' as const,
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 const waterToday = {

@@ -22,7 +22,7 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { auditReminders } from '@lily/api/services/reminders-audit/scheduler'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDays, ZoneName } from '@lily/shared'
+import { CareDays, Rating, ZoneName } from '@lily/shared'
 import { asc, type SQL, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, DateTime, Effect, Layer, Option, Ref, References } from 'effect'
@@ -120,10 +120,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             createdByUserId: alex,
             name,
             health: 'HEALTHY' as const,
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           }))
         )
         .returning({ id: schema.plants.id })

@@ -4,6 +4,7 @@ import {
 } from '@lily/api/repositories/follow.repository'
 import { DrizzleLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { inArray } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, ConfigProvider, Effect, Layer } from 'effect'
@@ -93,10 +94,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
     it('finds a private user by the exact handle, any case, with no plant count', async () => {
       await db.insert(schema.plants).values({
         name: 'Fern',
-        humidityRating: 3,
-        lightingRating: 3,
-        petToxicityRating: 1,
-        wateringRating: 3,
+        humidityRating: Rating.make(3),
+        lightingRating: Rating.make(3),
+        petToxicityRating: Rating.make(1),
+        wateringRating: Rating.make(3),
         userId: privateId,
         createdByUserId: privateId,
       })

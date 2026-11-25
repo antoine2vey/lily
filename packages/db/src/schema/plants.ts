@@ -5,6 +5,7 @@ import { diagnoses } from '@lily/db/schema/diagnoses'
 import { plantDeathCauseEnum, plantHealthEnum } from '@lily/db/schema/enums'
 import { notifications } from '@lily/db/schema/notifications'
 import { careLogs, plantPhotos } from '@lily/db/schema/plant-history'
+import { rating, ratingRange } from '@lily/db/schema/rating'
 import { rooms } from '@lily/db/schema/rooms'
 import { storedRef } from '@lily/db/schema/stored-ref'
 import { users } from '@lily/db/schema/users'
@@ -21,6 +22,7 @@ import {
   timestamp,
   uuid,
 } from 'drizzle-orm/pg-core'
+import { Array } from 'effect'
 
 export const plants = pgTable(
   'plants',
@@ -37,10 +39,10 @@ export const plants = pgTable(
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
-    humidityRating: integer('humidity_rating').notNull(),
-    lightingRating: integer('lighting_rating').notNull(),
-    petToxicityRating: integer('pet_toxicity_rating').notNull(),
-    wateringRating: integer('watering_rating').notNull(),
+    humidityRating: rating('humidity_rating'),
+    lightingRating: rating('lighting_rating'),
+    petToxicityRating: rating('pet_toxicity_rating'),
+    wateringRating: rating('watering_rating'),
     health: plantHealthEnum('health').notNull().default('HEALTHY'),
     remindersEnabled: boolean('reminders_enabled').notNull().default(true),
     isFavorite: boolean('is_favorite').notNull().default(false),
@@ -78,6 +80,15 @@ export const plants = pgTable(
     check(
       'plants_one_owner',
       sql`num_nonnulls(${table.userId}, ${table.canopyId}) = 1`
+    ),
+    ...Array.map(
+      [
+        table.humidityRating,
+        table.lightingRating,
+        table.petToxicityRating,
+        table.wateringRating,
+      ],
+      (column) => ratingRange('plants', column)
     ),
   ]
 )

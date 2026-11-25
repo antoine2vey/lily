@@ -26,7 +26,7 @@ import {
   type PlantWithRoom,
 } from '@lily/api/repositories/plant.repository'
 import { updatePlant } from '@lily/api/services/plants/endpoints/update-plant'
-import { RoomNotFoundError } from '@lily/shared'
+import { Rating, RoomNotFoundError } from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { failureOf } from '@lily/shared/testing'
 import { Effect, Exit, Layer, Option } from 'effect'
@@ -179,10 +179,10 @@ describe('updatePlant', () => {
           fertilizationFrequencyDays: null,
           mistingFrequencyDays: 3,
           repottingFrequencyDays: 365,
-          humidityRating: 4,
-          lightingRating: 2,
-          petToxicityRating: 1,
-          wateringRating: 5,
+          humidityRating: Rating.make(4),
+          lightingRating: Rating.make(2),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(5),
           isFavorite: true,
           remindersEnabled: false,
           potWidthCm: 12,

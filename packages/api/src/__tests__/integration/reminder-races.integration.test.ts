@@ -77,7 +77,7 @@ import { updateUserSettings } from '@lily/api/services/user/endpoints/update-use
 import { purgeAccount } from '@lily/api/services/user/helpers/purge-account'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { DEFAULT_ZONE, ZoneName } from '@lily/shared'
+import { DEFAULT_ZONE, Rating, ZoneName } from '@lily/shared'
 import { failureOf } from '@lily/shared/testing'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -260,10 +260,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             createdByUserId: alex,
             name: `Shared ${i}`,
             health: 'HEALTHY',
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           })
           .returning()
         if (!row) throw new Error('Failed to create plant')
@@ -645,10 +645,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: sam,
           name: 'Personal',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!plant) throw new Error('Failed to create plant')
@@ -704,10 +704,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: ownerId,
           name: 'Personal',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
         })
         .returning()
       if (!row) throw new Error('Failed to create plant')
@@ -1762,10 +1762,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createdByUserId: alex,
               name: `Delegated ${i}`,
               health: 'HEALTHY',
-              humidityRating: 3,
-              lightingRating: 3,
-              petToxicityRating: 1,
-              wateringRating: 3,
+              humidityRating: Rating.make(3),
+              lightingRating: Rating.make(3),
+              petToxicityRating: Rating.make(1),
+              wateringRating: Rating.make(3),
             })
             .returning()
           if (!row) throw new Error('Failed to create plant')
@@ -1990,10 +1990,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             createdByUserId: ivy,
             name: 'Own',
             health: 'HEALTHY',
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           })
           .returning()
         if (!own) throw new Error('Failed to create plant')
@@ -2071,10 +2071,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
               createdByUserId: fern,
               name: `Own ${i}`,
               health: 'HEALTHY',
-              humidityRating: 3,
-              lightingRating: 3,
-              petToxicityRating: 1,
-              wateringRating: 3,
+              humidityRating: Rating.make(3),
+              lightingRating: Rating.make(3),
+              petToxicityRating: Rating.make(1),
+              wateringRating: Rating.make(3),
               remindersEnabled: i !== 0,
               dateAdded: new Date(Date.now() - (100 - i) * day),
             })

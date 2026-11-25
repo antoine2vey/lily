@@ -1,5 +1,6 @@
 import { careDayOf } from '@lily/api/__tests__/integration/care-rows'
 import * as schema from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { and, count, eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array as Arr, Option, pipe } from 'effect'
@@ -84,19 +85,19 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             userId: testUserId,
             name: 'Water Plant A',
             health: 'HEALTHY',
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           },
           {
             userId: testUserId,
             name: 'Water Plant B',
             health: 'HEALTHY',
-            humidityRating: 3,
-            lightingRating: 3,
-            petToxicityRating: 1,
-            wateringRating: 3,
+            humidityRating: Rating.make(3),
+            lightingRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
+            wateringRating: Rating.make(3),
           },
         ])
         .returning()

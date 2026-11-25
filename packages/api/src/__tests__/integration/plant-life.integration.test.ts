@@ -44,7 +44,13 @@ import { UserRepositoryLive } from '@lily/api/repositories/user.repository'
 import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { type CareDay, CareDays, type PlantOwner, ZoneName } from '@lily/shared'
+import {
+  type CareDay,
+  CareDays,
+  type PlantOwner,
+  Rating,
+  ZoneName,
+} from '@lily/shared'
 import { PlantNotFoundError } from '@lily/shared/errors/plant'
 import { defectOf } from '@lily/shared/testing'
 import { asc, eq, sql } from 'drizzle-orm'
@@ -112,18 +118,18 @@ const request = {
   name: 'Fern',
   wateringFrequencyDays: 7,
   luxNeeded: 2000,
-  humidityRating: 3,
-  petToxicityRating: 1,
+  humidityRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
 }
 
 const draft: PlantDraft = {
   name: 'Fern',
   description: Option.none(),
   category: Option.none(),
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
   potWidthCm: Option.none(),
   potHeightCm: Option.none(),
   roomId: Option.none(),
@@ -202,10 +208,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: alex,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           ...(life === 'dead'
             ? { diedAt: new Date('2026-01-01'), deathCause: 'unknown' as const }
             : {}),

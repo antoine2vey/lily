@@ -30,6 +30,7 @@ import {
   userSubscriptions,
   users,
 } from '@lily/db/schema'
+import { Rating } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { eq } from 'drizzle-orm'
 import { Array as A, Console, Effect, Option, pipe } from 'effect'
@@ -382,10 +383,10 @@ export const seedReviewer = (config: ReviewerSeedConfig) =>
             name: plant.name,
             description: plant.description,
             category: plant.category,
-            humidityRating: plant.humidityRating,
-            lightingRating: plant.lightingRating,
-            petToxicityRating: plant.petToxicityRating,
-            wateringRating: plant.wateringRating,
+            humidityRating: Rating.make(plant.humidityRating),
+            lightingRating: Rating.make(plant.lightingRating),
+            petToxicityRating: Rating.make(plant.petToxicityRating),
+            wateringRating: Rating.make(plant.wateringRating),
             health: plant.health,
             isFavorite: plant.isFavorite,
             userId: user.id,

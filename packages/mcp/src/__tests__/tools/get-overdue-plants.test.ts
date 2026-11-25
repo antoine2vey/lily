@@ -7,6 +7,7 @@ import {
 } from '@lily/mcp/__tests__/mocks/plant'
 import { CurrentJwt } from '@lily/mcp/api-client'
 import { getOverduePlantsEffect } from '@lily/mcp/tools/get-overdue-plants'
+import { Rating } from '@lily/shared'
 import type { Plant } from '@lily/shared/plant'
 import { Effect, Layer } from 'effect'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -22,10 +23,10 @@ const mockOverduePlant: Plant = {
   category: 'tropical',
   dateAdded: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
-  humidityRating: 4,
-  lightingRating: 3,
-  petToxicityRating: 2,
-  wateringRating: 3,
+  humidityRating: Rating.make(4),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(2),
+  wateringRating: Rating.make(3),
   health: 'HEALTHY',
   remindersEnabled: true,
   isFavorite: false,

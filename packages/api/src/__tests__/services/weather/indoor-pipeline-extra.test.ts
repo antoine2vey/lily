@@ -43,7 +43,7 @@ import {
   weatherScopes,
 } from '@lily/api/services/weather-scheduler/readjust-care-schedules'
 import type { WeatherData } from '@lily/shared'
-import { roundCoord, ZoneName } from '@lily/shared'
+import { Rating, roundCoord, ZoneName } from '@lily/shared'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
 import { describe, expect, it } from 'vitest'
 
@@ -144,7 +144,7 @@ const indoorPlant = (
     id,
     name: id,
     category,
-    wateringRating: 50,
+    wateringRating: Rating.make(50),
     userId,
     roomId,
     scheduleSpecs: [
@@ -453,7 +453,7 @@ describe('indoor pipeline (extra): hemisphere & equator end-to-end', () => {
         id,
         name: id,
         category: 'Foliage',
-        wateringRating: 50,
+        wateringRating: Rating.make(50),
         userId,
         roomId: 'room-outdoor',
         diedAt: null,

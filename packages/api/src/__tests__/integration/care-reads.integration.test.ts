@@ -20,7 +20,7 @@ import {
 } from '@lily/api/repositories/plant.repository'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { CareDay, CareDays, ZoneName } from '@lily/shared'
+import { CareDay, CareDays, Rating, ZoneName } from '@lily/shared'
 import { eq, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
 import { Array, Effect, Layer, Option, pipe } from 'effect'
@@ -45,10 +45,10 @@ const ReadsLive = CareReadsLive.pipe(
 
 const ratings = {
   health: 'HEALTHY' as const,
-  humidityRating: 3,
-  lightingRating: 3,
-  petToxicityRating: 1,
-  wateringRating: 3,
+  humidityRating: Rating.make(3),
+  lightingRating: Rating.make(3),
+  petToxicityRating: Rating.make(1),
+  wateringRating: Rating.make(3),
 }
 
 describe.skipIf(!process.env.DATABASE_URL_TEST)(

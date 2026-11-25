@@ -53,7 +53,7 @@ import { createPlant } from '@lily/api/services/plants/endpoints/create-plant'
 import { LimitCheckerLive } from '@lily/api/services/subscriptions/limit-checker'
 import { DrizzleLive, PgLive } from '@lily/db'
 import * as schema from '@lily/db/schema'
-import { ZoneName } from '@lily/shared'
+import { Rating, ZoneName } from '@lily/shared'
 import { mintStoredRef } from '@lily/shared/services/file/stored-ref-mint'
 import { and, count, eq, isNull, sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/node-postgres'
@@ -167,10 +167,10 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
           createdByUserId: alex,
           name: 'Fern',
           health: 'HEALTHY',
-          humidityRating: 3,
-          lightingRating: 3,
-          petToxicityRating: 1,
-          wateringRating: 3,
+          humidityRating: Rating.make(3),
+          lightingRating: Rating.make(3),
+          petToxicityRating: Rating.make(1),
+          wateringRating: Rating.make(3),
           ...(life === 'dead'
             ? { diedAt: new Date('2026-01-01'), deathCause: 'unknown' as const }
             : {}),
@@ -462,8 +462,8 @@ describe.skipIf(!process.env.DATABASE_URL_TEST)(
             name: 'Last slot',
             wateringFrequencyDays: 7,
             luxNeeded: 2000,
-            humidityRating: 3,
-            petToxicityRating: 1,
+            humidityRating: Rating.make(3),
+            petToxicityRating: Rating.make(1),
           })
         )
         const [living] = await db

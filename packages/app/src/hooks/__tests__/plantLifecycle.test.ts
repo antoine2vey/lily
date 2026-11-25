@@ -1,4 +1,4 @@
-import { Plant, PlantsListResponse } from '@lily/shared'
+import { Plant, PlantsListResponse, Rating } from '@lily/shared'
 import { act, waitFor } from '@testing-library/react-native'
 import { Schema } from 'effect'
 import { mockPlants } from '@/__tests__/fixtures'
@@ -129,7 +129,7 @@ describe('plant lifecycle writes', () => {
       name: 'Fern',
       wateringFrequencyDays: 5,
       luxNeeded: 1000,
-      petToxicityRating: 1,
+      petToxicityRating: Rating.make(1),
     }
     await act(() => result.current.write.mutateAsync({ payload }))
 
