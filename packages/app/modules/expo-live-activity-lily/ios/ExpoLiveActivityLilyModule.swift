@@ -7,7 +7,8 @@ import ExpoModulesCore
 // module's job is to:
 //   1. Surface the per-device push-to-start token so the server can target it.
 //   2. Surface each running activity's per-activity update token so the server
-//      can push updates.
+//      can push updates, with the activity id the start push put in its
+//      attributes, so the server knows which start the card answers.
 //   3. Expose `endActivity` for in-app local dismissal.
 //
 // All user-facing strings live in the `ContentState` sent from the server —
@@ -46,7 +47,11 @@ public class ExpoLiveActivityLilyModule: Module {
       if #available(iOS 16.2, *) {
         return Activity<CareTasksAttributes>.activities.map { activity in
           let token = activity.pushToken?.map { String(format: "%02x", $0) }.joined() ?? ""
-          return ["activityId": activity.id, "pushToken": token]
+          return [
+            "activityId": activity.id,
+            "startId": activity.attributes.activityId,
+            "pushToken": token,
+          ]
         }
       }
       return []
@@ -81,6 +86,7 @@ public class ExpoLiveActivityLilyModule: Module {
               let hex = tokenData.map { String(format: "%02x", $0) }.joined()
               self?.sendEvent("onActivityToken", [
                 "activityId": activity.id,
+                "startId": activity.attributes.activityId,
                 "pushToken": hex,
               ])
             }

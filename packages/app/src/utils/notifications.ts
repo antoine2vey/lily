@@ -119,11 +119,12 @@ const postStartToken = async (
 const postActivityToken = async (
   deviceTokenId: string,
   activityId: string,
+  startId: string,
   updateToken: string
 ): Promise<void> => {
   try {
     await apiEffectRunner('activityPushTokens', 'registerActivityToken', {
-      payload: { activityId, updateToken, deviceTokenId },
+      payload: { activityId, startId, updateToken, deviceTokenId },
     })
   } catch (err) {
     console.warn('Failed to register LA activity token', err)
@@ -206,7 +207,12 @@ export async function reconcileLiveActivityTokens(
       }
       // Still work to do → make sure server has our current update token.
       if (a.pushToken) {
-        void postActivityToken(deviceTokenId, a.activityId, a.pushToken)
+        void postActivityToken(
+          deviceTokenId,
+          a.activityId,
+          a.startId,
+          a.pushToken
+        )
       }
     }
   } catch (err) {
@@ -245,9 +251,9 @@ export async function registerLiveActivityTokens(
   })
 
   const unsubActivity = subscribeToActivityTokens(
-    ({ activityId, pushToken }) => {
+    ({ activityId, startId, pushToken }) => {
       if (pushToken) {
-        void postActivityToken(deviceTokenId, activityId, pushToken)
+        void postActivityToken(deviceTokenId, activityId, startId, pushToken)
       }
     }
   )

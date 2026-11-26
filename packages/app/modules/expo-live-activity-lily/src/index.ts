@@ -6,6 +6,8 @@ import { Platform } from 'react-native'
 // activities locally.
 export interface ActiveActivity {
   activityId: string
+  // The activity id the server's push-to-start put in the attributes.
+  startId: string
   pushToken: string | null
 }
 
@@ -17,7 +19,7 @@ interface EventSubscription {
 // Names must match the Swift `Events(...)` declaration exactly.
 type NativeEvents = {
   onPushToStartToken: { token: string }
-  onActivityToken: { activityId: string; pushToken: string }
+  onActivityToken: { activityId: string; startId: string; pushToken: string }
 }
 
 // Expo modules expose a generic `addListener(eventName, cb)` — not
@@ -70,10 +72,10 @@ export const subscribeToPushToStartTokenUpdates = (
 }
 
 export const subscribeToActivityTokens = (
-  cb: (payload: { activityId: string; pushToken: string }) => void
+  cb: (payload: NativeEvents['onActivityToken']) => void
 ): (() => void) => {
   const sub = native.addListener('onActivityToken', (p) =>
-    cb({ activityId: p.activityId, pushToken: p.pushToken })
+    cb({ activityId: p.activityId, startId: p.startId, pushToken: p.pushToken })
   )
   return () => sub.remove()
 }
